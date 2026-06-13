@@ -104,7 +104,6 @@ export function DownloadPage({ activePlatform, config }: DownloadPageProps) {
 
   const handleStart = (params: {
     platform: string;
-    mode: string;
     url: string;
   }) => {
     if (wsRef.current?.readyState !== WebSocket.OPEN) {
@@ -112,7 +111,7 @@ export function DownloadPage({ activePlatform, config }: DownloadPageProps) {
       return;
     }
 
-    const mode = (typeof config.mode === "string" && config.mode) || params.mode || "one";
+    const mode = (typeof config.mode === "string" && config.mode) || "one";
 
     const msg = {
       action: "start",
@@ -135,6 +134,9 @@ export function DownloadPage({ activePlatform, config }: DownloadPageProps) {
         lyric: config.lyric || false,
         cover: config.cover || false,
         desc: config.desc || false,
+        skip_existing: config.skip_existing || false,
+        "proxies.http": config["proxies.http"] || "",
+        "proxies.https": config["proxies.https"] || "",
       },
     };
 

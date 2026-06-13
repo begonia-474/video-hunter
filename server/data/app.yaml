@@ -3,8 +3,10 @@
 
 douyin:
   cookie:
+  mode: post
   naming: '{create}_{desc}'
   path: Download
+  interval: all
   timeout: 10
   max_retries: 5
   lyric: yes
@@ -12,17 +14,21 @@ douyin:
   max_counts: 0
   max_tasks: 10
   page_counts: 20
+  skip_existing: false
 
 tiktok:
   cookie:
+  mode: post
+  naming: '{create}_{desc}'
+  path: Download
+  interval: all
+  timeout: 10
+  max_retries: 5
   max_connections: 5
   max_counts: 0
-  max_retries: 5
   max_tasks: 5
-  naming: '{create}_{desc}'
   page_counts: 5
-  path: Download
-  timeout: 10
+  skip_existing: false
 
 twitter:
   path: Download
@@ -37,6 +43,7 @@ twitter:
   max_counts: 0
   max_tasks: 5
   page_counts: 20
+  skip_existing: false
 
 weibo:
   path: Download
@@ -51,11 +58,16 @@ weibo:
   max_counts: 0
   max_tasks: 5
   page_counts: 20
+  skip_existing: false
 
 bark:
+  enable_bark: false
   key:
   token:
   mode: get
+  sound: birdsong
+  volume: 5
+  group: F2下载统计
   url: "https://f2.wiki/"
   retry: 3
   ringtones: 1

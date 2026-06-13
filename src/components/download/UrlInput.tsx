@@ -1,11 +1,10 @@
-import { useState } from "react";
-import { Input } from "@/components/ui/input";
+import { useState, useMemo, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Download, Link } from "lucide-react";
 
 interface UrlInputProps {
-  onStart: (params: { platform: string; mode: string; url: string }) => void;
+  onStart: (params: { platform: string; url: string }) => void;
   defaultPlatform?: string;
 }
 
@@ -49,26 +48,70 @@ function detectPlatform(url: string): string | null {
   return null;
 }
 
-export function UrlInput({ onStart, defaultPlatform = "douyin" }: UrlInputProps) {
-  const [url, setUrl] = useState("");
-  const [detectedPlatform, setDetectedPlatform] = useState<string | null>(null);
+interface ParsedUrl {
+  url: string;
+  platform: string;
+}
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value;
-    setUrl(val);
-    setDetectedPlatform(detectPlatform(val));
+const MIN_HEIGHT = 40; // px, ~2.5rem
+const MAX_HEIGHT = 144; // px, ~9rem
+
+export function UrlInput({ onStart, defaultPlatform = "douyin" }: UrlInputProps) {
+  const [text, setText] = useState("");
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const adjustHeight = useCallback(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = `${MIN_HEIGHT}px`;
+    const next = Math.min(Math.max(el.scrollHeight, MIN_HEIGHT), MAX_HEIGHT);
+    el.style.height = `${next}px`;
+    el.style.overflowY = el.scrollHeight > MAX_HEIGHT ? "auto" : "hidden";
+  }, []);
+
+  const parsedUrls = useMemo((): ParsedUrl[] => {
+    return text
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0 && line.startsWith("http"))
+      .map((url) => ({
+        url,
+        platform: detectPlatform(url) || defaultPlatform,
+      }));
+  }, [text, defaultPlatform]);
+
+  const platformCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const { platform } of parsedUrls) {
+      const name = platformPatterns[platform]?.name || platform;
+      counts[name] = (counts[name] || 0) + 1;
+    }
+    return counts;
+  }, [parsedUrls]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setText(e.target.value);
+    requestAnimationFrame(adjustHeight);
   };
 
   const handleSubmit = () => {
-    if (!url.trim()) return;
-    const platform = detectedPlatform || defaultPlatform;
-    onStart({ platform, mode: "one", url: url.trim() });
-    setUrl("");
-    setDetectedPlatform(null);
+    if (parsedUrls.length === 0) return;
+    for (const { platform, url } of parsedUrls) {
+      onStart({ platform, url });
+    }
+    setText("");
+    // 重置高度
+    if (textareaRef.current) {
+      textareaRef.current.style.height = `${MIN_HEIGHT}px`;
+      textareaRef.current.style.overflowY = "hidden";
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") handleSubmit();
+    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault();
+      handleSubmit();
+    }
   };
 
   return (
@@ -77,28 +120,34 @@ export function UrlInput({ onStart, defaultPlatform = "douyin" }: UrlInputProps)
         <div className="relative flex-1">
           <Link
             size={16}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+            className="absolute left-3 top-2.5 text-muted-foreground pointer-events-none"
           />
-          <Input
-            value={url}
+          <textarea
+            ref={textareaRef}
+            value={text}
             onChange={handleChange}
             onKeyDown={handleKeyDown}
-            placeholder="粘贴链接... 自动识别平台"
-            className="pl-9 h-10"
+            placeholder="粘贴链接，支持多个（每行一个）&#10;Ctrl/Cmd + Enter 下载"
+            className="w-full pl-9 pr-3 py-2 rounded-lg border border-input bg-white/50 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-none font-[inherit]"
+            style={{ height: `${MIN_HEIGHT}px`, overflowY: "hidden" }}
           />
         </div>
-        <Button onClick={handleSubmit} disabled={!url.trim()} className="h-10 px-5">
+        <Button onClick={handleSubmit} disabled={parsedUrls.length === 0} className="h-10 px-5 self-end">
           <Download size={16} />
-          下载
+          {parsedUrls.length > 1 ? `下载全部 (${parsedUrls.length})` : "下载"}
         </Button>
       </div>
 
-      {detectedPlatform && (
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground">检测到平台：</span>
-          <Badge variant="success">
-            {platformPatterns[detectedPlatform]?.name || detectedPlatform}
-          </Badge>
+      {parsedUrls.length > 0 && (
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs text-muted-foreground">
+            检测到 {parsedUrls.length} 个链接：
+          </span>
+          {Object.entries(platformCounts).map(([name, count]) => (
+            <Badge key={name} variant="success" className="text-[11px]">
+              {name}{count > 1 ? ` ×${count}` : ""}
+            </Badge>
+          ))}
         </div>
       )}
     </div>

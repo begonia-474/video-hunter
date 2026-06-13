@@ -4,14 +4,25 @@ from __future__ import annotations
 
 import asyncio
 import importlib
+import logging
 import traceback
 from pathlib import Path
 from typing import Any, Awaitable, Callable, Optional
 
 from utils.config import load_platform_config
 
+logger = logging.getLogger(__name__)
+
 # Type alias for progress callback
 ProgressCallback = Callable[[int, int, str], Awaitable[None]]
+
+
+async def _silent_bark_notification(*args: Any, **kwargs: Any) -> None:
+    """No-op replacement for handler._send_bark_notification.
+
+    Bark notifications are irrelevant when running through the GUI —
+    errors from the notification service must not abort the download.
+    """
 
 
 class F2Service:
@@ -54,8 +65,28 @@ class F2Service:
             raise RuntimeError(f"平台 {platform} 的 handler 模块未找到")
 
         try:
+            # Disable Bark notifications in all platform handlers — the GUI
+            # handles notifications separately, and a Bark failure must not
+            # abort an otherwise successful download.
+            Handler = getattr(handler_module, "Handler", None)
+            if Handler:
+                if hasattr(Handler, "_send_bark_notification"):
+                    Handler._send_bark_notification = _silent_bark_notification  # type: ignore
+                # Also patch the bark_notification object's send_quick_notification
+                # since some handlers call self.bark_notification.send_quick_notification()
+
+            # Also disable bark at the module level by patching the bark handler
+            try:
+                bark_handler_mod = importlib.import_module("f2.apps.bark.handler")
+                BarkHandler = getattr(bark_handler_mod, "BarkHandler", None)
+                if BarkHandler:
+                    BarkHandler._send_bark_notification = _silent_bark_notification  # type: ignore
+                    BarkHandler.send_quick_notification = _silent_bark_notification  # type: ignore
+                    BarkHandler.cipher_bark_notification = _silent_bark_notification  # type: ignore
+            except ImportError:
+                pass
+
             # f2's main() creates the Handler and dispatches to the mode handler
-            # It runs the full download pipeline internally
             await handler_module.main(kwargs)
 
             if progress_callback:
@@ -96,6 +127,7 @@ class F2Service:
             "page_counts": 20,
             "max_counts": 0,
             "folderize": False,
+            "skip_existing": False,
             "music": False,
             "lyric": False,
             "cover": False,
@@ -117,7 +149,7 @@ class F2Service:
         kwargs["url"] = url
 
         # Convert string booleans
-        for bool_key in ("music", "lyric", "cover", "desc", "folderize"):
+        for bool_key in ("music", "lyric", "cover", "desc", "folderize", "skip_existing"):
             val = kwargs.get(bool_key)
             if isinstance(val, str):
                 kwargs[bool_key] = val.lower() in ("true", "1", "yes")
@@ -138,8 +170,15 @@ class F2Service:
                 "Referer": f"https://www.{platform}.com/",
             }
 
-        # Set proxies if not present
-        if "proxies" not in kwargs:
+        # Handle proxy configuration from options
+        proxy_http = kwargs.pop("proxies.http", "") or ""
+        proxy_https = kwargs.pop("proxies.https", "") or ""
+        if proxy_http or proxy_https:
+            kwargs["proxies"] = {
+                "http://": proxy_http or None,
+                "https://": proxy_https or None,
+            }
+        elif "proxies" not in kwargs:
             kwargs["proxies"] = {"http://": None, "https://": None}
 
         return kwargs

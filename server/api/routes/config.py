@@ -8,7 +8,7 @@ import yaml
 from fastapi import APIRouter, HTTPException
 
 from api.models import ConfigUpdate
-from utils.config import get_app_yaml_path
+from utils.config import get_app_yaml_path, set_enable_bark
 
 router = APIRouter()
 
@@ -69,6 +69,14 @@ def _save_yaml(path: Path, data: dict) -> None:
         yaml.dump(data, fh, allow_unicode=True, default_flow_style=False)
 
 
+@router.get("/api/config/all")
+async def get_all_config() -> dict:
+    """Return all platform configs from ``app.yaml`` (excluding bark)."""
+    config_path = get_app_yaml_path()
+    data = _load_yaml(config_path)
+    return {k: v for k, v in data.items() if k != "bark" and isinstance(v, dict)}
+
+
 @router.get("/api/config/{platform}")
 async def get_config(platform: str) -> dict:
     """Return the configuration section for *platform* from ``app.yaml``."""
@@ -90,4 +98,9 @@ async def update_config(platform: str, body: ConfigUpdate) -> dict:
     existing.update(body.config)
     data[platform] = existing
     _save_yaml(config_path, data)
+
+    # Sync enable_bark to conf.yaml when bark config is saved
+    if platform == "bark" and "enable_bark" in body.config:
+        set_enable_bark(bool(body.config["enable_bark"]))
+
     return {"platform": platform, "config": existing, "status": "updated"}

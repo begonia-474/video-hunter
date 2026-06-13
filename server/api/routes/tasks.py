@@ -11,12 +11,17 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from api.models import TaskStatus
 from core.f2_service import F2Service
 from core.task_manager import TaskManager
+from core import history_db
 
 router = APIRouter()
 
 # Shared singletons
 task_manager = TaskManager()
 f2_service = F2Service()
+
+import logging
+
+logger = logging.getLogger(__name__)
 
 # All connected WebSocket clients
 _clients: set[WebSocket] = set()
@@ -50,8 +55,12 @@ async def _run_task(task: TaskStatus) -> None:
         if updated:
             await _broadcast({"type": "task_update", "task": updated.model_dump(mode="json")})
 
+    download_succeeded = False
+    files: list[str] = []
+
     try:
         task_manager.update_task_status(task.task_id, status="running", message="Starting download...")
+        logger.info(f"[TASK-START] id={task.task_id}")
         updated = task_manager.get_task(task.task_id)
         if updated:
             await _broadcast({"type": "task_update", "task": updated.model_dump(mode="json")})
@@ -64,22 +73,48 @@ async def _run_task(task: TaskStatus) -> None:
             progress_callback=on_progress,
         )
 
+        download_succeeded = True
+
         task_manager.update_task_status(
             task.task_id,
             status="complete",
             message="Download complete",
             files=files,
         )
+        logger.info(f"[TASK-COMPLETE] id={task.task_id}")
     except Exception as exc:
-        task_manager.update_task_status(
-            task.task_id,
-            status="failed",
-            message=str(exc),
-        )
+        if download_succeeded:
+            task_manager.update_task_status(
+                task.task_id,
+                status="complete",
+                message=f"下载完成（附加功能出错: {exc}）",
+                files=files,
+            )
+            logger.info(f"[TASK-COMPLETE-WITH-ERROR] id={task.task_id} error={exc}")
+        else:
+            task_manager.update_task_status(
+                task.task_id,
+                status="failed",
+                message=str(exc),
+            )
+            logger.info(f"[TASK-FAILED] id={task.task_id} error={exc}")
 
     final = task_manager.get_task(task.task_id)
     if final:
         await _broadcast({"type": "task_update", "task": final.model_dump(mode="json")})
+        # Persist finished tasks to SQLite
+        if final.status in ("complete", "failed"):
+            history_db.save_task(
+                task_id=final.task_id,
+                platform=final.platform,
+                mode=final.mode,
+                url=final.url,
+                status=final.status,
+                message=final.message,
+                files=final.files,
+                options=final.options,
+                created_at=final.created_at.isoformat() if final.created_at else None,
+            )
 
 
 @router.websocket("/api/tasks")
@@ -138,6 +173,7 @@ async def websocket_tasks(ws: WebSocket) -> None:
                     continue
 
                 task = task_manager.add_task(platform=platform, mode=mode, url=url, options=options)
+                logger.info(f"[TASK-CREATED] id={task.task_id} platform={platform} mode={mode}")
                 await _broadcast({"type": "task_update", "task": task.model_dump(mode="json")})
 
                 # Run the download in a background task

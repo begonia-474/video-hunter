@@ -27,7 +27,7 @@ interface FieldDef {
   placeholder?: string;
   description?: string;
   options?: { value: string; label: string }[];
-  group: "basic" | "download" | "advanced";
+  group: "basic" | "download" | "network" | "advanced";
 }
 
 const douyinFields: FieldDef[] = [
@@ -39,10 +39,13 @@ const douyinFields: FieldDef[] = [
       { value: "post", label: "用户主页作品" },
       { value: "like", label: "点赞作品" },
       { value: "collection", label: "收藏作品" },
+      { value: "collects", label: "收藏夹" },
       { value: "music", label: "收藏音乐" },
-      { value: "live", label: "直播流" },
-      { value: "user-mix", label: "合集作品" },
+      { value: "mix", label: "合集作品" },
+      { value: "live", label: "直播录制" },
+      { value: "feed", label: "推荐流" },
       { value: "related", label: "相关推荐" },
+      { value: "friend", label: "好友动态" },
     ],
   },
   { key: "path", label: "下载路径", type: "text", placeholder: "Download", group: "download" },
@@ -53,12 +56,15 @@ const douyinFields: FieldDef[] = [
   { key: "cover", label: "下载封面", type: "toggle", group: "download" },
   { key: "desc", label: "保存文案", type: "toggle", group: "download" },
   { key: "folderize", label: "子文件夹", type: "toggle", description: "为每个作品创建独立文件夹", group: "download" },
+  { key: "skip_existing", label: "跳过已下载", type: "toggle", description: "已存在的文件不再重复下载", group: "download" },
   { key: "timeout", label: "请求超时 (秒)", type: "number", placeholder: "10", group: "advanced" },
   { key: "max_retries", label: "最大重试", type: "number", placeholder: "5", group: "advanced" },
   { key: "max_connections", label: "最大连接数", type: "number", placeholder: "5", group: "advanced" },
   { key: "max_tasks", label: "并发下载数", type: "number", placeholder: "10", group: "advanced" },
   { key: "page_counts", label: "每页数量", type: "number", placeholder: "20", group: "advanced" },
   { key: "max_counts", label: "最大下载数", type: "number", placeholder: "0 = 无限制", group: "advanced" },
+  { key: "proxies.http", label: "HTTP 代理", type: "text", placeholder: "http://127.0.0.1:7897", group: "network" },
+  { key: "proxies.https", label: "HTTPS 代理", type: "text", placeholder: "http://127.0.0.1:7897", group: "network" },
 ];
 
 const tiktokFields: FieldDef[] = [
@@ -69,8 +75,10 @@ const tiktokFields: FieldDef[] = [
       { value: "one", label: "单个作品" },
       { value: "post", label: "用户主页作品" },
       { value: "like", label: "点赞作品" },
-      { value: "collection", label: "收藏作品" },
-      { value: "live", label: "直播流" },
+      { value: "collect", label: "收藏作品" },
+      { value: "mix", label: "合集作品" },
+      { value: "search", label: "关键词搜索" },
+      { value: "live", label: "直播录制" },
     ],
   },
   { key: "path", label: "下载路径", type: "text", placeholder: "Download", group: "download" },
@@ -80,12 +88,15 @@ const tiktokFields: FieldDef[] = [
   { key: "cover", label: "下载封面", type: "toggle", group: "download" },
   { key: "desc", label: "保存文案", type: "toggle", group: "download" },
   { key: "folderize", label: "子文件夹", type: "toggle", group: "download" },
+  { key: "skip_existing", label: "跳过已下载", type: "toggle", description: "已存在的文件不再重复下载", group: "download" },
   { key: "timeout", label: "请求超时 (秒)", type: "number", placeholder: "10", group: "advanced" },
   { key: "max_retries", label: "最大重试", type: "number", placeholder: "5", group: "advanced" },
   { key: "max_connections", label: "最大连接数", type: "number", placeholder: "5", group: "advanced" },
   { key: "max_tasks", label: "并发下载数", type: "number", placeholder: "5", group: "advanced" },
   { key: "page_counts", label: "每页数量", type: "number", placeholder: "5", group: "advanced" },
   { key: "max_counts", label: "最大下载数", type: "number", placeholder: "0 = 无限制", group: "advanced" },
+  { key: "proxies.http", label: "HTTP 代理", type: "text", placeholder: "http://127.0.0.1:7897", group: "network" },
+  { key: "proxies.https", label: "HTTPS 代理", type: "text", placeholder: "http://127.0.0.1:7897", group: "network" },
 ];
 
 const twitterFields: FieldDef[] = [
@@ -96,19 +107,22 @@ const twitterFields: FieldDef[] = [
       { value: "one", label: "单条推文" },
       { value: "post", label: "用户推文" },
       { value: "like", label: "喜欢的推文" },
-      { value: "media", label: "媒体文件" },
+      { value: "bookmark", label: "书签推文" },
     ],
   },
   { key: "path", label: "下载路径", type: "text", placeholder: "Download", group: "download" },
   { key: "naming", label: "文件命名模板", type: "text", placeholder: "{create}_{desc}", group: "download" },
   { key: "interval", label: "日期区间", type: "text", placeholder: "all", group: "download" },
   { key: "folderize", label: "子文件夹", type: "toggle", group: "download" },
+  { key: "skip_existing", label: "跳过已下载", type: "toggle", description: "已存在的文件不再重复下载", group: "download" },
   { key: "timeout", label: "请求超时 (秒)", type: "number", placeholder: "10", group: "advanced" },
   { key: "max_retries", label: "最大重试", type: "number", placeholder: "5", group: "advanced" },
   { key: "max_connections", label: "最大连接数", type: "number", placeholder: "5", group: "advanced" },
   { key: "max_tasks", label: "并发下载数", type: "number", placeholder: "5", group: "advanced" },
   { key: "page_counts", label: "每页数量", type: "number", placeholder: "20", group: "advanced" },
   { key: "max_counts", label: "最大下载数", type: "number", placeholder: "0 = 无限制", group: "advanced" },
+  { key: "proxies.http", label: "HTTP 代理", type: "text", placeholder: "http://127.0.0.1:7897", group: "network" },
+  { key: "proxies.https", label: "HTTPS 代理", type: "text", placeholder: "http://127.0.0.1:7897", group: "network" },
 ];
 
 const weiboFields: FieldDef[] = [
@@ -124,12 +138,15 @@ const weiboFields: FieldDef[] = [
   { key: "naming", label: "文件命名模板", type: "text", placeholder: "{create}_{desc}", group: "download" },
   { key: "interval", label: "日期区间", type: "text", placeholder: "all", group: "download" },
   { key: "folderize", label: "子文件夹", type: "toggle", group: "download" },
+  { key: "skip_existing", label: "跳过已下载", type: "toggle", description: "已存在的文件不再重复下载", group: "download" },
   { key: "timeout", label: "请求超时 (秒)", type: "number", placeholder: "10", group: "advanced" },
   { key: "max_retries", label: "最大重试", type: "number", placeholder: "5", group: "advanced" },
   { key: "max_connections", label: "最大连接数", type: "number", placeholder: "5", group: "advanced" },
   { key: "max_tasks", label: "并发下载数", type: "number", placeholder: "5", group: "advanced" },
   { key: "page_counts", label: "每页数量", type: "number", placeholder: "20", group: "advanced" },
   { key: "max_counts", label: "最大下载数", type: "number", placeholder: "0 = 无限制", group: "advanced" },
+  { key: "proxies.http", label: "HTTP 代理", type: "text", placeholder: "http://127.0.0.1:7897", group: "network" },
+  { key: "proxies.https", label: "HTTPS 代理", type: "text", placeholder: "http://127.0.0.1:7897", group: "network" },
 ];
 
 const platformFields: Record<string, FieldDef[]> = {
@@ -139,9 +156,20 @@ const platformFields: Record<string, FieldDef[]> = {
   weibo: weiboFields,
 };
 
+const barkFields: FieldDef[] = [
+  { key: "enable_bark", label: "启用推送通知", type: "toggle", description: "下载完成后发送 iOS 推送通知", group: "basic" },
+  { key: "key", label: "Bark Key", type: "text", placeholder: "输入 Bark App 中的 Key", group: "basic" },
+  { key: "token", label: "设备 Token", type: "text", placeholder: "可选，用于指定设备", group: "basic" },
+  { key: "sound", label: "铃声", type: "text", placeholder: "birdsong", description: "铃声名称，参考 Bark App", group: "basic" },
+  { key: "volume", label: "音量", type: "number", placeholder: "5", group: "basic" },
+  { key: "group", label: "通知分组", type: "text", placeholder: "F2下载统计", group: "basic" },
+  { key: "url", label: "点击跳转", type: "text", placeholder: "https://f2.wiki/", group: "basic" },
+];
+
 const groupLabels: Record<string, string> = {
   basic: "基础配置",
   download: "下载配置",
+  network: "网络配置",
   advanced: "高级配置",
 };
 
@@ -156,9 +184,10 @@ interface ConfigPageProps {
 export function ConfigPage({ activePlatform, setActivePlatform, config, setConfig }: ConfigPageProps) {
   const [saved, setSaved] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showNetwork, setShowNetwork] = useState(false);
   const [cookieDialogOpen, setCookieDialogOpen] = useState(false);
 
-  const fields = platformFields[activePlatform] || [];
+  const fields = activePlatform === "bark" ? barkFields : (platformFields[activePlatform] || []);
 
   const grouped = fields.reduce(
     (acc, f) => {
@@ -279,20 +308,36 @@ export function ConfigPage({ activePlatform, setActivePlatform, config, setConfi
               )}
             </button>
           ))}
+          <div className="my-2 border-t border-border" />
+          <button
+            onClick={() => setActivePlatform("bark")}
+            className={cn(
+              "flex items-center justify-between w-full px-3 py-2 rounded-lg text-sm transition-mac",
+              activePlatform === "bark"
+                ? "bg-primary/10 text-primary font-medium"
+                : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+            )}
+          >
+            <span>通知</span>
+          </button>
         </div>
 
         {/* 右侧：配置表单 */}
         <div className="flex-1 overflow-auto px-6 py-4">
-          {Object.entries(grouped).map(([group, groupFields]) => (
+          {Object.entries(grouped).map(([group, groupFields]) => {
+            const collapsible = group === "advanced" || group === "network";
+            const expanded = group === "advanced" ? showAdvanced : group === "network" ? showNetwork : true;
+            const toggle = group === "advanced" ? () => setShowAdvanced(!showAdvanced) : group === "network" ? () => setShowNetwork(!showNetwork) : undefined;
+            return (
             <div key={group} className="mb-6">
-              {group === "advanced" ? (
+              {collapsible ? (
                 <button
-                  onClick={() => setShowAdvanced(!showAdvanced)}
+                  onClick={toggle}
                   className="flex items-center gap-2 mb-3 text-sm font-medium text-muted-foreground hover:text-foreground transition-mac"
                 >
                   <svg
                     width="12" height="12" viewBox="0 0 12 12"
-                    className={cn("transition-transform", showAdvanced && "rotate-90")}
+                    className={cn("transition-transform", expanded && "rotate-90")}
                   >
                     <path d="M4 2l4 4-4 4" fill="none" stroke="currentColor" strokeWidth="1.5" />
                   </svg>
@@ -304,7 +349,7 @@ export function ConfigPage({ activePlatform, setActivePlatform, config, setConfi
                 </h3>
               )}
 
-              {(group !== "advanced" || showAdvanced) && (
+              {expanded && (
                 <Card>
                   <CardContent className="p-4 space-y-4">
                     {groupFields.map((field) => (
@@ -320,7 +365,8 @@ export function ConfigPage({ activePlatform, setActivePlatform, config, setConfi
                 </Card>
               )}
             </div>
-          ))}
+          );
+          })}
 
           <div className="flex gap-2 pt-2 pb-4">
             <Button onClick={handleSave} className="gap-2">

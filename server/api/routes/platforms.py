@@ -17,10 +17,13 @@ _PLATFORMS: list[PlatformInfo] = [
             ModeOption(id="post", name="用户主页", description="下载用户主页全部作品"),
             ModeOption(id="like", name="点赞作品", description="下载用户点赞作品"),
             ModeOption(id="collection", name="收藏作品", description="下载用户收藏作品"),
+            ModeOption(id="collects", name="收藏夹", description="下载收藏夹内容"),
             ModeOption(id="music", name="收藏音乐", description="下载用户收藏音乐"),
-            ModeOption(id="live", name="直播", description="下载直播回放"),
-            ModeOption(id="user-mix", name="合集", description="下载用户合集"),
+            ModeOption(id="mix", name="合集", description="下载用户合集"),
+            ModeOption(id="live", name="直播录制", description="录制直播流"),
+            ModeOption(id="feed", name="推荐流", description="下载推荐流作品"),
             ModeOption(id="related", name="相关推荐", description="下载相关推荐作品"),
+            ModeOption(id="friend", name="好友动态", description="下载好友动态作品"),
         ],
     ),
     PlatformInfo(
@@ -29,11 +32,13 @@ _PLATFORMS: list[PlatformInfo] = [
         icon="tiktok",
         status="ready",
         modes=[
-            ModeOption(id="one", name="Single Post", description="Download a single post"),
-            ModeOption(id="post", name="User Posts", description="Download all posts from a user"),
-            ModeOption(id="like", name="Liked Posts", description="Download liked posts"),
-            ModeOption(id="collection", name="Collection", description="Download collection"),
-            ModeOption(id="live", name="Live", description="Download live replay"),
+            ModeOption(id="one", name="单个作品", description="下载单个作品"),
+            ModeOption(id="post", name="用户主页", description="下载用户全部作品"),
+            ModeOption(id="like", name="点赞作品", description="下载点赞作品"),
+            ModeOption(id="collect", name="收藏作品", description="下载收藏作品"),
+            ModeOption(id="mix", name="合集", description="下载合集作品"),
+            ModeOption(id="search", name="关键词搜索", description="按关键词搜索下载"),
+            ModeOption(id="live", name="直播录制", description="录制直播流"),
         ],
     ),
     PlatformInfo(
@@ -45,7 +50,7 @@ _PLATFORMS: list[PlatformInfo] = [
             ModeOption(id="one", name="单条推文", description="下载单条推文"),
             ModeOption(id="post", name="用户推文", description="下载用户全部推文"),
             ModeOption(id="like", name="喜欢", description="下载用户喜欢的推文"),
-            ModeOption(id="media", name="媒体", description="下载用户媒体文件"),
+            ModeOption(id="bookmark", name="书签", description="下载用户书签推文"),
         ],
     ),
     PlatformInfo(
@@ -59,7 +64,16 @@ _PLATFORMS: list[PlatformInfo] = [
             ModeOption(id="collection", name="收藏夹", description="下载收藏夹内容"),
         ],
     ),
-    PlatformInfo(id="weibo", name="微博", icon="weibo", status="planned", modes=[]),
+    PlatformInfo(
+        id="weibo",
+        name="微博",
+        icon="weibo",
+        status="ready",
+        modes=[
+            ModeOption(id="one", name="单条微博", description="下载单条微博"),
+            ModeOption(id="post", name="用户微博", description="下载用户全部微博"),
+        ],
+    ),
     PlatformInfo(
         id="instagram", name="Instagram", icon="instagram", status="planned", modes=[]
     ),

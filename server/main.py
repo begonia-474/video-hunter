@@ -16,6 +16,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from api.routes import config, history, platforms, tasks
+from core.history_db import init_db
 from utils.config import ensure_default_config, get_app_yaml_path
 
 app = FastAPI(title="f2 GUI Server", version="0.1.0")
@@ -41,6 +42,9 @@ async def on_startup() -> None:
     """Initialize resources and announce readiness on stdout."""
     # Make sure a default config exists so config routes don't 404 on first run
     ensure_default_config(get_app_yaml_path())
+
+    # Initialize SQLite history database
+    init_db()
 
     port = getattr(app.state, "port", 18224)
     ready_msg = json.dumps({"port": port, "status": "ready"})

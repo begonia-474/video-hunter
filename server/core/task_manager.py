@@ -52,10 +52,10 @@ class TaskManager:
             )
 
     def list_history(self) -> list[TaskStatus]:
-        """Return completed tasks (history), newest first."""
+        """Return finished tasks (complete + failed), newest first."""
         with self._lock:
             return sorted(
-                [t for t in self._tasks.values() if t.status == "complete"],
+                [t for t in self._tasks.values() if t.status in ("complete", "failed")],
                 key=lambda t: t.created_at,
                 reverse=True,
             )

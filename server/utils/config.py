@@ -76,6 +76,36 @@ def ensure_default_config(destination: Path) -> None:
     )
 
 
+def get_conf_yaml_path() -> Path:
+    """Return the path to ``conf/conf.yaml`` (f2 low-frequency config)."""
+    f2_root = find_f2_root()
+    if f2_root is not None:
+        path = f2_root / "f2" / "conf" / "conf.yaml"
+        if path.is_file():
+            return path
+    return Path(__file__).resolve().parent.parent / "data" / "conf.yaml"
+
+
+def set_enable_bark(enable: bool) -> None:
+    """Update the ``f2.enable_bark`` field in ``conf.yaml``."""
+    import logging
+    logger = logging.getLogger(__name__)
+    conf_path = get_conf_yaml_path()
+    if not conf_path.is_file():
+        logger.warning("conf.yaml not found at %s, skipping enable_bark sync", conf_path)
+        return
+    try:
+        data = yaml.safe_load(conf_path.read_text(encoding="utf-8")) or {}
+        if "f2" not in data:
+            data["f2"] = {}
+        data["f2"]["enable_bark"] = enable
+        conf_path.parent.mkdir(parents=True, exist_ok=True)
+        with conf_path.open("w", encoding="utf-8") as fh:
+            yaml.dump(data, fh, allow_unicode=True, default_flow_style=False)
+    except Exception as e:
+        logger.error("Failed to update enable_bark in conf.yaml: %s", e)
+
+
 def load_platform_config(platform: str) -> Optional[dict[str, Any]]:
     """Load the saved configuration for *platform* from ``app.yaml``.
 
