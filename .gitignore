@@ -1,0 +1,51 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+dist-ssr/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyc
+*.egg-info/
+*.egg
+.venv/
+venv/
+
+# Tauri build
+src-tauri/target/
+src-tauri/gen/
+
+# Runtime data
+server/data/*.bak
+server/data/*.db
+server/*.db
+server/logs/
+
+# Docs / Project meta
+docs/
+CLAUDE.md
+
+# Claude Code internals
+.claude/
+.codegraph/
+
+# IDE
+.vscode/
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Misc
+*.local
+*.log
+logs/
