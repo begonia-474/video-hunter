@@ -26,6 +26,15 @@ logger = logging.getLogger(__name__)
 # All connected WebSocket clients
 _clients: set[WebSocket] = set()
 
+# Track running asyncio tasks for cancellation
+_running_tasks: dict[str, asyncio.Task] = {}
+
+
+@router.get("/api/tasks/stats")
+async def get_task_stats() -> dict:
+    """Get current task statistics."""
+    return task_manager.get_stats()
+
 
 async def _broadcast(message: dict[str, Any]) -> None:
     """Send a JSON message to every connected client."""
@@ -43,7 +52,13 @@ async def _broadcast(message: dict[str, Any]) -> None:
 async def _run_task(task: TaskStatus) -> None:
     """Execute the download in the background and broadcast updates."""
 
+    cancel_event = task_manager.get_cancel_event(task.task_id)
+
     async def on_progress(current: int, total: int, message: str) -> None:
+        # Check for cancellation
+        if cancel_event.is_set():
+            raise asyncio.CancelledError("Task cancelled by user")
+
         task_manager.update_task_status(
             task.task_id,
             status="running",
@@ -82,6 +97,13 @@ async def _run_task(task: TaskStatus) -> None:
             files=files,
         )
         logger.info(f"[TASK-COMPLETE] id={task.task_id}")
+    except asyncio.CancelledError:
+        task_manager.update_task_status(
+            task.task_id,
+            status="cancelled",
+            message="Task cancelled by user",
+        )
+        logger.info(f"[TASK-CANCELLED] id={task.task_id}")
     except Exception as exc:
         if download_succeeded:
             task_manager.update_task_status(
@@ -98,12 +120,14 @@ async def _run_task(task: TaskStatus) -> None:
                 message=str(exc),
             )
             logger.info(f"[TASK-FAILED] id={task.task_id} error={exc}")
+    finally:
+        _running_tasks.pop(task.task_id, None)
 
     final = task_manager.get_task(task.task_id)
     if final:
         await _broadcast({"type": "task_update", "task": final.model_dump(mode="json")})
         # Persist finished tasks to SQLite
-        if final.status in ("complete", "failed"):
+        if final.status in ("complete", "failed", "cancelled"):
             history_db.save_task(
                 task_id=final.task_id,
                 platform=final.platform,
@@ -177,7 +201,64 @@ async def websocket_tasks(ws: WebSocket) -> None:
                 await _broadcast({"type": "task_update", "task": task.model_dump(mode="json")})
 
                 # Run the download in a background task
-                asyncio.create_task(_run_task(task))
+                asyncio_task = asyncio.create_task(_run_task(task))
+                _running_tasks[task.task_id] = asyncio_task
+
+            elif action == "cancel":
+                task_id = msg.get("task_id", "")
+                if not task_id:
+                    await ws.send_text(
+                        json.dumps({"type": "error", "message": "task_id is required"})
+                    )
+                    continue
+
+                task = task_manager.cancel_task(task_id)
+                if task:
+                    # Cancel the asyncio task if it's running
+                    asyncio_task = _running_tasks.get(task_id)
+                    if asyncio_task and not asyncio_task.done():
+                        asyncio_task.cancel()
+                    await _broadcast({"type": "task_update", "task": task.model_dump(mode="json")})
+                else:
+                    await ws.send_text(
+                        json.dumps({"type": "error", "message": f"Task not found: {task_id}"})
+                    )
+
+            elif action == "retry":
+                task_id = msg.get("task_id", "")
+                if not task_id:
+                    await ws.send_text(
+                        json.dumps({"type": "error", "message": "task_id is required"})
+                    )
+                    continue
+
+                task = task_manager.retry_task(task_id)
+                if task:
+                    await _broadcast({"type": "task_update", "task": task.model_dump(mode="json")})
+                    # Re-run the task
+                    asyncio_task = asyncio.create_task(_run_task(task))
+                    _running_tasks[task.task_id] = asyncio_task
+                else:
+                    await ws.send_text(
+                        json.dumps({"type": "error", "message": f"Task not found or not failed: {task_id}"})
+                    )
+
+            elif action == "remove":
+                task_id = msg.get("task_id", "")
+                if not task_id:
+                    await ws.send_text(
+                        json.dumps({"type": "error", "message": "task_id is required"})
+                    )
+                    continue
+
+                if task_manager.remove_task(task_id):
+                    await ws.send_text(
+                        json.dumps({"type": "task_removed", "task_id": task_id})
+                    )
+                else:
+                    await ws.send_text(
+                        json.dumps({"type": "error", "message": f"Task not found or still running: {task_id}"})
+                    )
 
             else:
                 await ws.send_text(

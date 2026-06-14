@@ -115,6 +115,18 @@ def delete_task(task_id: str) -> bool:
         return cur.rowcount > 0
 
 
+def delete_tasks(task_ids: list[str]) -> int:
+    """Delete multiple tasks by ids. Returns count deleted."""
+    if not task_ids:
+        return 0
+    conn = _get_conn()
+    with _lock:
+        placeholders = ",".join("?" * len(task_ids))
+        cur = conn.execute(f"DELETE FROM tasks WHERE task_id IN ({placeholders})", task_ids)
+        conn.commit()
+        return cur.rowcount
+
+
 def clear_all() -> int:
     """Delete all tasks. Returns count deleted."""
     conn = _get_conn()
@@ -122,6 +134,28 @@ def clear_all() -> int:
         cur = conn.execute("DELETE FROM tasks")
         conn.commit()
         return cur.rowcount
+
+
+def get_stats() -> dict[str, Any]:
+    """Get history statistics."""
+    conn = _get_conn()
+    with _lock:
+        total = conn.execute("SELECT COUNT(*) FROM tasks").fetchone()[0]
+        by_status = {}
+        for row in conn.execute("SELECT status, COUNT(*) FROM tasks GROUP BY status"):
+            by_status[row[0]] = row[1]
+        by_platform = {}
+        for row in conn.execute("SELECT platform, COUNT(*) FROM tasks GROUP BY platform"):
+            by_platform[row[0]] = row[1]
+        by_mode = {}
+        for row in conn.execute("SELECT mode, COUNT(*) FROM tasks GROUP BY mode"):
+            by_mode[row[0]] = row[1]
+        return {
+            "total": total,
+            "by_status": by_status,
+            "by_platform": by_platform,
+            "by_mode": by_mode,
+        }
 
 
 def _row_to_dict(row: sqlite3.Row) -> dict[str, Any]:

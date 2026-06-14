@@ -4,6 +4,7 @@ node_modules/
 # Build output
 dist/
 dist-ssr/
+build/
 
 # Python
 __pycache__/
@@ -13,6 +14,7 @@ __pycache__/
 *.egg
 .venv/
 venv/
+server/build/
 
 # Tauri build
 src-tauri/target/
@@ -21,6 +23,7 @@ src-tauri/gen/
 # Runtime data
 server/data/*.bak
 server/data/*.db
+server/data/app.yaml
 server/*.db
 server/logs/
 

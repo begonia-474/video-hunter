@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib
 import logging
+import re
 import traceback
 from pathlib import Path
 from typing import Any, Awaitable, Callable, Optional
@@ -50,7 +51,43 @@ class IntervalMonitor(logging.Handler):
                 )
 
 
+class FileTracker(logging.Handler):
+    """Track downloaded files by monitoring f2's completion logs."""
+
+    def __init__(self):
+        super().__init__()
+        self.downloaded_files: list[str] = []
+        self.enabled = False
+        # Pattern to match f2's log: [  跳过  ]: filename or [  完成  ]: filename
+        self._pattern = re.compile(r'\[\s*(?:跳过|完成)\s*\]\s*[:：]\s*(.+)')
+        # Pattern to clean Rich markup tags like [\cyan], [green], [/green]
+        self._rich_pattern = re.compile(r'\[/?\\?\w+\]')
+
+    def reset(self):
+        self.downloaded_files = []
+        self.enabled = True
+
+    def disable(self):
+        self.enabled = False
+
+    def emit(self, record):
+        if not self.enabled:
+            return
+
+        msg = record.getMessage()
+        # Match completion/skip logs
+        match = self._pattern.search(msg)
+        if match:
+            filename = match.group(1).strip()
+            # Clean Rich markup tags
+            filename = self._rich_pattern.sub('', filename).strip()
+            if filename:
+                self.downloaded_files.append(filename)
+                logger.debug(f"[FileTracker] Tracked file: {filename}")
+
+
 _interval_monitor = IntervalMonitor(max_empty_pages=3)
+_file_tracker = FileTracker()
 
 
 def _setup_interval_monitor():
@@ -58,6 +95,13 @@ def _setup_interval_monitor():
     f2_logger = logging.getLogger("f2")
     if _interval_monitor not in f2_logger.handlers:
         f2_logger.addHandler(_interval_monitor)
+
+
+def _setup_file_tracker():
+    """Attach file tracker to f2's logger."""
+    f2_logger = logging.getLogger("f2")
+    if _file_tracker not in f2_logger.handlers:
+        f2_logger.addHandler(_file_tracker)
 
 
 async def _noop(*_a: Any, **_kw: Any) -> None:
@@ -111,6 +155,10 @@ class F2Service:
                 )
             use_interval_monitor = True
 
+        # Get base path and resolved path
+        download_path = kwargs.get("path", "Download")
+        resolved_path = Path(download_path).resolve()
+
         if progress_callback:
             await progress_callback(0, 0, f"正在初始化 {platform} 下载...")
 
@@ -131,19 +179,54 @@ class F2Service:
                 _setup_interval_monitor()
                 _interval_monitor.reset()
 
+            # Setup file tracker
+            _setup_file_tracker()
+            _file_tracker.reset()
+
             await handler_module.main(kwargs)
 
             if progress_callback:
                 await progress_callback(1, 1, "下载完成")
 
-            download_path = kwargs.get("path", "Download")
-            return [str(Path(download_path).resolve())]
+            # Get tracked files from file tracker
+            tracked_files = _file_tracker.downloaded_files.copy()
+            if tracked_files:
+                # Try to find user nickname from f2 database for path construction
+                user_path = self._find_user_path(platform, mode, url, resolved_path)
+                
+                # For batch downloads (post, like, collection, etc.), return user folder path
+                # For single downloads (one), return specific file paths
+                batch_modes = {"post", "like", "collection", "collects", "music", "mix", "live", "feed", "related", "friend"}
+                if mode in batch_modes:
+                    # Return user folder path
+                    return [str(user_path)]
+                else:
+                    # Single download - return specific file paths
+                    abs_files = []
+                    for filename in tracked_files:
+                        full_path = self._resolve_file_path(user_path, resolved_path, filename)
+                        abs_files.append(str(full_path))
+                    return abs_files
+            return [str(resolved_path)]
         except IntervalExhaustedError as e:
             logger.info(f"[IntervalExhausted] {e}")
             if progress_callback:
                 await progress_callback(1, 1, "区间下载完成")
-            download_path = kwargs.get("path", "Download")
-            return [str(Path(download_path).resolve())]
+            # Get tracked files from file tracker
+            tracked_files = _file_tracker.downloaded_files.copy()
+            if tracked_files:
+                user_path = self._find_user_path(platform, mode, url, resolved_path)
+                # For batch downloads, return user folder path
+                batch_modes = {"post", "like", "collection", "collects", "music", "mix", "live", "feed", "related", "friend"}
+                if mode in batch_modes:
+                    return [str(user_path)]
+                else:
+                    abs_files = []
+                    for filename in tracked_files:
+                        full_path = self._resolve_file_path(user_path, resolved_path, filename)
+                        abs_files.append(str(full_path))
+                    return abs_files
+            return [str(resolved_path)]
         except Exception as e:
             traceback.print_exc()
             # 检查下载目录是否有文件（区分部分成功和完全失败）
@@ -162,6 +245,52 @@ class F2Service:
             raise RuntimeError(f"下载失败: {e}")
         finally:
             _interval_monitor.disable()
+            _file_tracker.disable()
+
+    def _find_user_path(self, platform: str, mode: str, url: str, base_path: Path) -> Path:
+        """Find user path from f2 database based on URL."""
+        from core.f2_db import get_user_info, get_recent_users
+        import re
+        
+        # Extract user ID from URL
+        user_id = None
+        # Match /user/SEC_USER_ID or /u/123456 patterns
+        user_match = re.search(r'/user/([A-Za-z0-9_-]+)', url) or re.search(r'/u/(\d+)', url)
+        if user_match:
+            user_id = user_match.group(1)
+        
+        # Try to find user in database
+        nickname = None
+        if user_id:
+            user_info = get_user_info(platform, user_id)
+            if user_info:
+                nickname = user_info.get("nickname")
+        
+        # If not found, try to get the most recent user
+        if not nickname:
+            recent_users = get_recent_users(platform, limit=1)
+            if recent_users:
+                nickname = recent_users[0].get("nickname")
+        
+        # Construct path: {base_path}/{platform}/{mode}/{nickname}
+        if nickname:
+            return base_path / platform / mode / nickname
+        return base_path / platform / mode
+
+    def _resolve_file_path(self, user_path: Path, base_path: Path, filename: str) -> Path:
+        """Resolve the full file path by searching in user path and base path."""
+        # First try in user path
+        full_path = user_path / filename
+        if full_path.exists():
+            return full_path
+        
+        # Search in base path recursively
+        for p in base_path.rglob(filename):
+            if p.is_file():
+                return p
+        
+        # Fallback to user path
+        return full_path
 
     def _build_kwargs(
         self,

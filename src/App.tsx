@@ -4,6 +4,7 @@ import { Sidebar, type PageId } from "@/components/layout/Sidebar";
 import { DownloadPage } from "@/pages/Download";
 import { ConfigPage } from "@/pages/Config";
 import { HistoryPage } from "@/pages/History";
+import { StatsPage } from "@/pages/Stats";
 import { cn } from "@/lib/utils";
 
 export default function App() {
@@ -94,6 +95,9 @@ export default function App() {
           </div>
           <div className={cn("h-full", activePage !== "history" && "hidden")}>
             <HistoryPage active={activePage === "history"} />
+          </div>
+          <div className={cn("h-full", activePage !== "stats" && "hidden")}>
+            <StatsPage active={activePage === "stats"} />
           </div>
         </main>
       </div>

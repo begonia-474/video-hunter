@@ -1,12 +1,7 @@
-import {
-  Download,
-  Settings,
-  History,
-  type LucideIcon,
-} from "lucide-react";
+import { Download, Settings, History, BarChart3, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export type PageId = "download" | "config" | "history";
+export type PageId = "download" | "config" | "history" | "stats";
 
 interface NavItem {
   id: PageId;
@@ -16,8 +11,9 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { id: "download", label: "下载", icon: Download },
-  { id: "config", label: "配置", icon: Settings },
   { id: "history", label: "历史", icon: History },
+  { id: "stats", label: "统计", icon: BarChart3 },
+  { id: "config", label: "配置", icon: Settings },
 ];
 
 interface SidebarProps {
@@ -49,11 +45,9 @@ export function Sidebar({ activePage, onNavigate }: SidebarProps) {
         })}
       </nav>
 
-      {/* 底部版本信息 */}
+      {/* Bottom version info */}
       <div className="mt-auto px-3 py-3 border-t border-border">
-        <p className="text-[11px] text-muted-foreground">
-          f2 GUI v0.1.0
-        </p>
+        <p className="text-[11px] text-muted-foreground">f2 GUI v0.1.0</p>
       </div>
     </aside>
   );

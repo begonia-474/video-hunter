@@ -1,7 +1,8 @@
 import { useState, useMemo, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Download, Link } from "lucide-react";
+import { Download, Link, List } from "lucide-react";
+import { MultiUrlDialog } from "./MultiUrlDialog";
 
 interface UrlInputProps {
   onStart: (params: { platform: string; url: string }) => void;
@@ -58,6 +59,7 @@ const MAX_HEIGHT = 144; // px, ~9rem
 
 export function UrlInput({ onStart, defaultPlatform = "douyin" }: UrlInputProps) {
   const [text, setText] = useState("");
+  const [multiDialogOpen, setMultiDialogOpen] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const adjustHeight = useCallback(() => {
@@ -114,6 +116,25 @@ export function UrlInput({ onStart, defaultPlatform = "douyin" }: UrlInputProps)
     }
   };
 
+  const handleMultiUrlConfirm = (urls: string[]) => {
+    // Add URLs to textarea
+    const currentText = text.trim();
+    const newText = currentText
+      ? currentText + "\n" + urls.join("\n")
+      : urls.join("\n");
+    setText(newText);
+    // Trigger height adjustment
+    requestAnimationFrame(() => {
+      if (textareaRef.current) {
+        const el = textareaRef.current;
+        el.style.height = `${MIN_HEIGHT}px`;
+        const next = Math.min(Math.max(el.scrollHeight, MIN_HEIGHT), MAX_HEIGHT);
+        el.style.height = `${next}px`;
+        el.style.overflowY = el.scrollHeight > MAX_HEIGHT ? "auto" : "hidden";
+      }
+    });
+  };
+
   return (
     <div className="flex flex-col gap-3">
       <div className="flex gap-2">
@@ -132,9 +153,19 @@ export function UrlInput({ onStart, defaultPlatform = "douyin" }: UrlInputProps)
             style={{ height: `${MIN_HEIGHT}px`, overflowY: "hidden" }}
           />
         </div>
-        <Button onClick={handleSubmit} disabled={parsedUrls.length === 0} className="h-10 px-5 self-end">
-          <Download size={16} />
-          {parsedUrls.length > 1 ? `下载全部 (${parsedUrls.length})` : "下载"}
+        <div className="flex flex-col gap-1.5 self-end">
+          <Button onClick={handleSubmit} disabled={parsedUrls.length === 0} className="h-10 px-5">
+            <Download size={16} />
+            {parsedUrls.length > 1 ? `下载全部 (${parsedUrls.length})` : "下载"}
+          </Button>
+        </div>
+        <Button
+          variant="outline"
+          onClick={() => setMultiDialogOpen(true)}
+          className="h-10 px-3 self-end"
+          title="批量添加链接"
+        >
+          <List size={16} />
         </Button>
       </div>
 
@@ -150,6 +181,12 @@ export function UrlInput({ onStart, defaultPlatform = "douyin" }: UrlInputProps)
           ))}
         </div>
       )}
+
+      <MultiUrlDialog
+        open={multiDialogOpen}
+        onClose={() => setMultiDialogOpen(false)}
+        onConfirm={handleMultiUrlConfirm}
+      />
     </div>
   );
 }

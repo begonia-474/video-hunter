@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import threading
 import uuid
 from datetime import datetime
@@ -15,6 +16,7 @@ class TaskManager:
 
     def __init__(self) -> None:
         self._tasks: dict[str, TaskStatus] = {}
+        self._cancel_events: dict[str, asyncio.Event] = {}
         self._lock = threading.Lock()
 
     # ------------------------------------------------------------------
@@ -77,3 +79,75 @@ class TaskManager:
             if files is not None:
                 task.files = files
             return task
+
+    def cancel_task(self, task_id: str) -> Optional[TaskStatus]:
+        """Request cancellation of a running task."""
+        with self._lock:
+            task = self._tasks.get(task_id)
+            if task is None:
+                return None
+            if task.status in ("complete", "failed", "cancelled"):
+                return task
+            task.status = "cancelled"
+            task.message = "Task cancelled by user"
+            # Signal the cancel event
+            event = self._cancel_events.get(task_id)
+            if event:
+                event.set()
+            return task
+
+    def retry_task(self, task_id: str) -> Optional[TaskStatus]:
+        """Reset a failed task to pending for retry."""
+        with self._lock:
+            task = self._tasks.get(task_id)
+            if task is None:
+                return None
+            if task.status != "failed":
+                return task
+            task.status = "pending"
+            task.message = "Task queued for retry"
+            task.current = 0
+            task.total = 0
+            task.files = []
+            return task
+
+    def get_cancel_event(self, task_id: str) -> asyncio.Event:
+        """Get or create a cancellation event for a task."""
+        with self._lock:
+            if task_id not in self._cancel_events:
+                self._cancel_events[task_id] = asyncio.Event()
+            return self._cancel_events[task_id]
+
+    def remove_task(self, task_id: str) -> bool:
+        """Remove a completed/failed/cancelled task from memory."""
+        with self._lock:
+            task = self._tasks.get(task_id)
+            if task is None:
+                return False
+            if task.status in ("running", "pending"):
+                return False
+            del self._tasks[task_id]
+            self._cancel_events.pop(task_id, None)
+            return True
+
+    def get_stats(self) -> dict:
+        """Get task statistics."""
+        with self._lock:
+            stats = {
+                "total": len(self._tasks),
+                "pending": 0,
+                "running": 0,
+                "complete": 0,
+                "failed": 0,
+                "cancelled": 0,
+                "by_platform": {},
+            }
+            for task in self._tasks.values():
+                stats[task.status] = stats.get(task.status, 0) + 1
+                platform = task.platform
+                if platform not in stats["by_platform"]:
+                    stats["by_platform"][platform] = {"total": 0, "complete": 0, "failed": 0}
+                stats["by_platform"][platform]["total"] += 1
+                if task.status in ("complete", "failed"):
+                    stats["by_platform"][platform][task.status] += 1
+            return stats

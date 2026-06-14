@@ -11,7 +11,15 @@ interface LogEntry {
   text: string;
 }
 
-export function DownloadPage({ activePlatform, config, onConnected }: { activePlatform: string; config: Record<string, string | boolean>; onConnected?: (connected: boolean) => void }) {
+export function DownloadPage({
+  activePlatform,
+  config,
+  onConnected,
+}: {
+  activePlatform: string;
+  config: Record<string, string | boolean>;
+  onConnected?: (connected: boolean) => void;
+}) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [connected, setConnected] = useState(false);
   const [logs, setLogs] = useState<LogEntry[]>([]);
@@ -54,6 +62,8 @@ export function DownloadPage({ activePlatform, config, onConnected }: { activePl
             }
             return [msg.task, ...prev];
           });
+        } else if (msg.type === "task_removed") {
+          setTasks((prev) => prev.filter((t) => t.task_id !== msg.task_id));
         }
       } catch {
         addLog("error", `解析消息失败: ${event.data}`);
@@ -74,7 +84,7 @@ export function DownloadPage({ activePlatform, config, onConnected }: { activePl
     };
 
     wsRef.current = ws;
-  }, [addLog]);
+  }, [addLog, onConnected]);
 
   useEffect(() => {
     connect();
@@ -88,18 +98,23 @@ export function DownloadPage({ activePlatform, config, onConnected }: { activePl
     logEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [logs]);
 
-  const handleStart = (params: {
-    platform: string;
-    url: string;
-  }) => {
-    if (wsRef.current?.readyState !== WebSocket.OPEN) {
-      addLog("error", "未连接到后端服务，无法发送任务");
-      return;
-    }
+  const sendWsMessage = useCallback(
+    (msg: Record<string, unknown>) => {
+      if (wsRef.current?.readyState !== WebSocket.OPEN) {
+        addLog("error", "未连接到后端服务");
+        return;
+      }
+      addLog("send", JSON.stringify(msg, null, 2));
+      wsRef.current.send(JSON.stringify(msg));
+    },
+    [addLog]
+  );
 
-    const mode = (typeof config.mode === "string" && config.mode) || "one";
+  const handleStart = (params: { platform: string; url: string }) => {
+    const mode =
+      (typeof config.mode === "string" && config.mode) || "one";
 
-    const msg = {
+    sendWsMessage({
       action: "start",
       platform: params.platform,
       mode,
@@ -124,10 +139,31 @@ export function DownloadPage({ activePlatform, config, onConnected }: { activePl
         "proxies.http": config["proxies.http"] || "",
         "proxies.https": config["proxies.https"] || "",
       },
-    };
+    });
+  };
 
-    addLog("send", JSON.stringify(msg, null, 2));
-    wsRef.current.send(JSON.stringify(msg));
+  const handleCancel = (taskId: string) => {
+    sendWsMessage({ action: "cancel", task_id: taskId });
+  };
+
+  const handleRetry = (taskId: string) => {
+    sendWsMessage({ action: "retry", task_id: taskId });
+  };
+
+  const handleRemove = (taskId: string) => {
+    sendWsMessage({ action: "remove", task_id: taskId });
+  };
+
+  const handleBatchCancel = (taskIds: string[]) => {
+    taskIds.forEach((id) => {
+      sendWsMessage({ action: "cancel", task_id: id });
+    });
+  };
+
+  const handleBatchRemove = (taskIds: string[]) => {
+    taskIds.forEach((id) => {
+      sendWsMessage({ action: "remove", task_id: id });
+    });
   };
 
   const levelColors: Record<string, string> = {
@@ -161,7 +197,14 @@ export function DownloadPage({ activePlatform, config, onConnected }: { activePl
       </div>
 
       <div className="flex-1 overflow-auto px-6 pb-2">
-        <TaskList tasks={tasks} />
+        <TaskList
+          tasks={tasks}
+          onCancel={handleCancel}
+          onRetry={handleRetry}
+          onRemove={handleRemove}
+          onBatchCancel={handleBatchCancel}
+          onBatchRemove={handleBatchRemove}
+        />
       </div>
 
       {/* 日志面板 */}
@@ -179,14 +222,20 @@ export function DownloadPage({ activePlatform, config, onConnected }: { activePl
         </button>
 
         {logOpen && (
-          <div className="h-40 overflow-auto px-6 pb-3 bg-[#1e1e1e] font-mono text-[11px] leading-relaxed">
+          <div className="h-40 overflow-auto px-6 pb-3 bg-foreground/5 font-mono text-[11px] leading-relaxed">
             {logs.length === 0 ? (
-              <p className="text-gray-500 py-2">暂无日志</p>
+              <p className="text-muted-foreground py-2">暂无日志</p>
             ) : (
               logs.map((log, i) => (
-                <div key={i} className={cn("whitespace-pre-wrap break-all", levelColors[log.type])}>
-                  <span className="text-gray-600">[{log.time}] </span>
-                  <span className="text-gray-500">[{log.type}] </span>
+                <div
+                  key={i}
+                  className={cn(
+                    "whitespace-pre-wrap break-all",
+                    levelColors[log.type]
+                  )}
+                >
+                  <span className="text-muted-foreground/60">[{log.time}] </span>
+                  <span className="text-muted-foreground/40">[{log.type}] </span>
                   {log.text}
                 </div>
               ))
