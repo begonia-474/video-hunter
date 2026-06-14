@@ -1,22 +1,7 @@
 import { TaskCard } from "./TaskCard";
+import type { Task } from "@/lib/constants";
 
-interface Task {
-  task_id: string;
-  platform: string;
-  mode: string;
-  url: string;
-  status: string;
-  message?: string;
-  current?: number;
-  total?: number;
-  files?: string[];
-}
-
-interface TaskListProps {
-  tasks: Task[];
-}
-
-export function TaskList({ tasks }: TaskListProps) {
+export function TaskList({ tasks }: { tasks: Task[] }) {
   if (tasks.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-48 text-muted-foreground">

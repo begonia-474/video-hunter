@@ -2,19 +2,8 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { UrlInput } from "@/components/download/UrlInput";
 import { TaskList } from "@/components/download/TaskList";
 import { cn } from "@/lib/utils";
+import type { Task } from "@/lib/constants";
 import { Terminal, ChevronUp, ChevronDown } from "lucide-react";
-
-interface Task {
-  task_id: string;
-  platform: string;
-  mode: string;
-  url: string;
-  status: string;
-  message?: string;
-  current?: number;
-  total?: number;
-  files?: string[];
-}
 
 interface LogEntry {
   time: string;
@@ -22,12 +11,7 @@ interface LogEntry {
   text: string;
 }
 
-interface DownloadPageProps {
-  activePlatform: string;
-  config: Record<string, string | boolean>;
-}
-
-export function DownloadPage({ activePlatform, config }: DownloadPageProps) {
+export function DownloadPage({ activePlatform, config }: { activePlatform: string; config: Record<string, string | boolean> }) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [connected, setConnected] = useState(false);
   const [logs, setLogs] = useState<LogEntry[]>([]);

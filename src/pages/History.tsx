@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { platformNames, modeNames } from "@/lib/constants";
 import { FileVideo, RefreshCw, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 
 interface HistoryItem {
@@ -15,31 +16,6 @@ interface HistoryItem {
   options: Record<string, unknown>;
   created_at: string;
 }
-
-const platformNames: Record<string, string> = {
-  douyin: "抖音",
-  tiktok: "TikTok",
-  twitter: "Twitter",
-  bilibili: "Bilibili",
-  weibo: "微博",
-};
-
-const modeNames: Record<string, string> = {
-  one: "单个作品",
-  post: "用户主页",
-  like: "点赞作品",
-  collection: "收藏作品",
-  collects: "收藏夹",
-  music: "收藏音乐",
-  mix: "合集",
-  live: "直播录制",
-  feed: "推荐流",
-  related: "相关推荐",
-  friend: "好友动态",
-  collect: "收藏作品",
-  search: "关键词搜索",
-  bookmark: "书签推文",
-};
 
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" | "success" | "warning" }> = {
   running: { label: "运行中", variant: "warning" },

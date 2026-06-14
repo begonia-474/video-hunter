@@ -2,54 +2,14 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
+import { platformNames, type Task } from "@/lib/constants";
 import { Loader2, CheckCircle2, XCircle, Clock } from "lucide-react";
 
-interface Task {
-  task_id: string;
-  platform: string;
-  mode: string;
-  url: string;
-  status: string;
-  message?: string;
-  current?: number;
-  total?: number;
-  files?: string[];
-}
-
-const statusConfig: Record<
-  string,
-  { label: string; variant: "default" | "secondary" | "success" | "destructive" | "warning"; icon: React.ReactNode }
-> = {
-  pending: {
-    label: "等待中",
-    variant: "secondary",
-    icon: <Clock size={14} />,
-  },
-  running: {
-    label: "下载中",
-    variant: "default",
-    icon: <Loader2 size={14} className="animate-spin" />,
-  },
-  complete: {
-    label: "完成",
-    variant: "success",
-    icon: <CheckCircle2 size={14} />,
-  },
-  failed: {
-    label: "失败",
-    variant: "destructive",
-    icon: <XCircle size={14} />,
-  },
-};
-
-const platformNames: Record<string, string> = {
-  douyin: "抖音",
-  tiktok: "TikTok",
-  twitter: "Twitter",
-  bilibili: "Bilibili",
-  youtube: "YouTube",
-  instagram: "Instagram",
-  weibo: "微博",
+const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "success" | "destructive" | "warning"; icon: React.ReactNode }> = {
+  pending: { label: "等待中", variant: "secondary", icon: <Clock size={14} /> },
+  running: { label: "下载中", variant: "default", icon: <Loader2 size={14} className="animate-spin" /> },
+  complete: { label: "完成", variant: "success", icon: <CheckCircle2 size={14} /> },
+  failed: { label: "失败", variant: "destructive", icon: <XCircle size={14} /> },
 };
 
 export function TaskCard({ task }: { task: Task }) {
