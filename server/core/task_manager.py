@@ -51,15 +51,6 @@ class TaskManager:
                 reverse=True,
             )
 
-    def list_history(self) -> list[TaskStatus]:
-        """Return finished tasks (complete + failed), newest first."""
-        with self._lock:
-            return sorted(
-                [t for t in self._tasks.values() if t.status in ("complete", "failed")],
-                key=lambda t: t.created_at,
-                reverse=True,
-            )
-
     def update_task_status(
         self,
         task_id: str,

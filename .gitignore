@@ -27,6 +27,10 @@ server/logs/
 # Docs / Project meta
 docs/
 CLAUDE.md
+AGENTS.md
+
+# Databases
+*.db
 
 # Claude Code internals
 .claude/
