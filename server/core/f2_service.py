@@ -15,6 +15,51 @@ logger = logging.getLogger(__name__)
 ProgressCallback = Callable[[int, int, str], Awaitable[None]]
 
 
+class IntervalExhaustedError(Exception):
+    """Raised when interval filtering finds no matching works for multiple consecutive pages."""
+    pass
+
+
+class IntervalMonitor(logging.Handler):
+    """Monitor f2 logs to detect when interval filtering exhausts all pages."""
+
+    def __init__(self, max_empty_pages: int = 3):
+        super().__init__()
+        self.max_empty_pages = max_empty_pages
+        self.empty_page_count = 0
+        self.enabled = False
+
+    def reset(self):
+        self.empty_page_count = 0
+        self.enabled = True
+
+    def disable(self):
+        self.enabled = False
+
+    def emit(self, record):
+        if not self.enabled:
+            return
+
+        msg = record.getMessage()
+        if "没有找到符合条件的作品" in msg:
+            self.empty_page_count += 1
+            logger.debug(f"[IntervalMonitor] Empty page count: {self.empty_page_count}/{self.max_empty_pages}")
+            if self.empty_page_count >= self.max_empty_pages:
+                raise IntervalExhaustedError(
+                    f"连续 {self.max_empty_pages} 页没有找到符合条件的作品，已到达区间边界，停止下载"
+                )
+
+
+_interval_monitor = IntervalMonitor(max_empty_pages=3)
+
+
+def _setup_interval_monitor():
+    """Attach interval monitor to f2's logger."""
+    f2_logger = logging.getLogger("f2")
+    if _interval_monitor not in f2_logger.handlers:
+        f2_logger.addHandler(_interval_monitor)
+
+
 async def _noop(*_a: Any, **_kw: Any) -> None:
     """No-op replacement for Bark notification methods.
 
@@ -52,6 +97,20 @@ class F2Service:
     ) -> list[str]:
         kwargs = self._build_kwargs(platform, mode, url, options)
 
+        # Validate interval parameter
+        interval = kwargs.get("interval", "all")
+        use_interval_monitor = False
+        if interval != "all" and interval:
+            # 兼容 _ 分隔符，自动转换为 |
+            if "_" in interval and "|" not in interval:
+                interval = interval.replace("_", "|")
+                kwargs["interval"] = interval
+            if "|" not in interval:
+                raise RuntimeError(
+                    f"interval 参数格式错误，应为 '2022-01-01|2023-01-01' 或 'all'，当前值：{interval}"
+                )
+            use_interval_monitor = True
+
         if progress_callback:
             await progress_callback(0, 0, f"正在初始化 {platform} 下载...")
 
@@ -67,6 +126,11 @@ class F2Service:
                 Handler._send_bark_notification = _noop
             _patch_bark()
 
+            # Setup interval monitor if needed
+            if use_interval_monitor:
+                _setup_interval_monitor()
+                _interval_monitor.reset()
+
             await handler_module.main(kwargs)
 
             if progress_callback:
@@ -74,9 +138,30 @@ class F2Service:
 
             download_path = kwargs.get("path", "Download")
             return [str(Path(download_path).resolve())]
+        except IntervalExhaustedError as e:
+            logger.info(f"[IntervalExhausted] {e}")
+            if progress_callback:
+                await progress_callback(1, 1, "区间下载完成")
+            download_path = kwargs.get("path", "Download")
+            return [str(Path(download_path).resolve())]
         except Exception as e:
             traceback.print_exc()
+            # 检查下载目录是否有文件（区分部分成功和完全失败）
+            download_path = kwargs.get("path", "Download")
+            resolved_path = Path(download_path).resolve()
+            downloaded_files = []
+            if resolved_path.exists():
+                downloaded_files = [f for f in resolved_path.rglob("*") if f.is_file()]
+            
+            if downloaded_files:
+                # 有文件已下载，标记为部分成功
+                logger.warning(f"[DownloadPartial] f2 出错但有 {len(downloaded_files)} 个文件已下载: {e}")
+                if progress_callback:
+                    await progress_callback(1, 1, f"部分完成（{len(downloaded_files)} 个文件）")
+                return [str(resolved_path)]
             raise RuntimeError(f"下载失败: {e}")
+        finally:
+            _interval_monitor.disable()
 
     def _build_kwargs(
         self,

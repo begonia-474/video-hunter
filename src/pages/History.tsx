@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { platformNames, modeNames } from "@/lib/constants";
-import { FileVideo, RefreshCw, Trash2, ChevronDown, ChevronUp } from "lucide-react";
+import { FileVideo, RefreshCw, Trash2, ChevronDown, ChevronUp, User, Video } from "lucide-react";
 
 interface HistoryItem {
   task_id: string;
@@ -15,6 +15,45 @@ interface HistoryItem {
   files: string[];
   options: Record<string, unknown>;
   created_at: string;
+}
+
+interface F2User {
+  // 通用字段
+  nickname?: string;
+  avatar_url?: string;
+  avatar_hd?: string;
+  follower_count?: number;
+  followers_count?: number;
+  following_count?: number;
+  aweme_count?: number;
+  weibo_count?: number;
+  signature?: string;
+  description?: string;
+  sec_user_id?: string;
+  uid?: string;
+  unique_id?: string;
+  gender?: string;
+  location?: string;
+  profile_url?: string;
+  verified?: number;
+  // 微博特有字段
+  cover_image?: string;
+  following?: number;
+  friends_count?: number;
+  weihao?: string;
+  user_type?: string;
+}
+
+interface F2Video {
+  desc?: string;
+  cover?: string;
+  duration?: string;
+  create_time?: string;
+  nickname?: string;
+  digg_count?: string;
+  comment_count?: string;
+  share_count?: string;
+  aweme_id?: string;
 }
 
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" | "success" | "warning" }> = {
@@ -32,6 +71,8 @@ export function HistoryPage({ active }: HistoryPageProps) {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [f2Users, setF2Users] = useState<Record<string, F2User>>({});
+  const [f2Videos, setF2Videos] = useState<Record<string, F2Video>>({});
 
   const fetchHistory = useCallback(async () => {
     setLoading(true);
@@ -40,6 +81,8 @@ export function HistoryPage({ active }: HistoryPageProps) {
       if (res.ok) {
         const data = await res.json();
         setHistory(data);
+        // Fetch f2 data for each platform
+        fetchF2Data(data);
       }
     } catch {
       // backend not available
@@ -47,6 +90,41 @@ export function HistoryPage({ active }: HistoryPageProps) {
       setLoading(false);
     }
   }, []);
+
+  const fetchF2Data = async (historyItems: HistoryItem[]) => {
+    const platforms = [...new Set(historyItems.map(item => item.platform))];
+    for (const platform of platforms) {
+      try {
+        const usersRes = await fetch(`http://127.0.0.1:18224/api/f2/users?platform=${platform}&limit=100`);
+        if (usersRes.ok) {
+          const users = await usersRes.json();
+          const usersMap: Record<string, F2User> = {};
+          users.forEach((user: F2User) => {
+            // 抖音/Twitter 使用 sec_user_id，微博使用 uid
+            const userId = user.sec_user_id || user.uid;
+            if (userId) {
+              usersMap[userId] = user;
+            }
+          });
+          setF2Users(prev => ({ ...prev, ...usersMap }));
+        }
+
+        const videosRes = await fetch(`http://127.0.0.1:18224/api/f2/videos?platform=${platform}&limit=100`);
+        if (videosRes.ok) {
+          const videos = await videosRes.json();
+          const videosMap: Record<string, F2Video> = {};
+          videos.forEach((video: F2Video) => {
+            if (video.aweme_id) {
+              videosMap[video.aweme_id] = video;
+            }
+          });
+          setF2Videos(prev => ({ ...prev, ...videosMap }));
+        }
+      } catch {
+        // ignore
+      }
+    }
+  };
 
   useEffect(() => {
     if (active) {
@@ -84,6 +162,35 @@ export function HistoryPage({ active }: HistoryPageProps) {
     } catch {
       return dateStr;
     }
+  };
+
+  const getVideoIdFromUrl = (url: string): string | null => {
+    // Extract video ID from URL patterns like /video/1234567890
+    const match = url.match(/\/video\/(\d+)/);
+    return match ? match[1] : null;
+  };
+
+  const getUserIdFromUrl = (url: string): string | null => {
+    // Extract user ID from URL patterns like /user/SEC_USER_ID or /u/123456
+    const match = url.match(/\/user\/([A-Za-z0-9_-]+)/) || url.match(/\/u\/(\d+)/);
+    return match ? match[1] : null;
+  };
+
+  const getRelatedF2Data = (item: HistoryItem) => {
+    if (item.mode === "one") {
+      // Single video mode
+      const videoId = getVideoIdFromUrl(item.url);
+      if (videoId && f2Videos[videoId]) {
+        return { type: "video", data: f2Videos[videoId] };
+      }
+    } else {
+      // User mode (post, like, etc.)
+      const userId = getUserIdFromUrl(item.url);
+      if (userId && f2Users[userId]) {
+        return { type: "user", data: f2Users[userId] };
+      }
+    }
+    return null;
   };
 
   return (
@@ -132,6 +239,7 @@ export function HistoryPage({ active }: HistoryPageProps) {
             {history.map((item) => {
               const sc = statusConfig[item.status] || { label: item.status, variant: "secondary" as const };
               const isExpanded = expandedId === item.task_id;
+              const f2Data = getRelatedF2Data(item);
               return (
                 <Card key={item.task_id}>
                   <CardContent className="p-4">
@@ -148,7 +256,95 @@ export function HistoryPage({ active }: HistoryPageProps) {
                             {sc.label}
                           </Badge>
                         </div>
-                        <p className="text-sm truncate text-foreground/80">{item.url}</p>
+
+                        {/* F2 Data Preview */}
+                        {f2Data && (
+                          <div className="mt-2 p-2 rounded-md bg-secondary/50">
+                            {f2Data.type === "video" ? (
+                              <div className="flex items-start gap-2">
+                                {(f2Data.data as F2Video).cover && (
+                                  <img
+                                    src={(f2Data.data as F2Video).cover}
+                                    alt="封面"
+                                    className="w-16 h-16 rounded object-cover"
+                                    onError={(e) => {
+                                      (e.target as HTMLImageElement).style.display = 'none';
+                                    }}
+                                  />
+                                )}
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-1">
+                                    <Video size={12} className="text-muted-foreground" />
+                                    <span className="text-xs font-medium truncate">
+                                      {(f2Data.data as F2Video).desc || "无标题"}
+                                    </span>
+                                  </div>
+                                  {(f2Data.data as F2Video).nickname && (
+                                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                                      @{(f2Data.data as F2Video).nickname}
+                                    </p>
+                                  )}
+                                  <div className="flex items-center gap-2 mt-1 text-[10px] text-muted-foreground">
+                                    {(f2Data.data as F2Video).digg_count && (
+                                      <span>❤️ {(f2Data.data as F2Video).digg_count}</span>
+                                    )}
+                                    {(f2Data.data as F2Video).comment_count && (
+                                      <span>💬 {(f2Data.data as F2Video).comment_count}</span>
+                                    )}
+                                    {(f2Data.data as F2Video).duration && (
+                                      <span>⏱️ {(f2Data.data as F2Video).duration}s</span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2">
+                                {((f2Data.data as F2User).avatar_url || (f2Data.data as F2User).avatar_hd) && (
+                                  <img
+                                    src={(f2Data.data as F2User).avatar_url || (f2Data.data as F2User).avatar_hd}
+                                    alt="头像"
+                                    className="w-10 h-10 rounded-full object-cover"
+                                    onError={(e) => {
+                                      (e.target as HTMLImageElement).style.display = 'none';
+                                    }}
+                                  />
+                                )}
+                                <div>
+                                  <div className="flex items-center gap-1">
+                                    <User size={12} className="text-muted-foreground" />
+                                    <span className="text-xs font-medium">
+                                      {(f2Data.data as F2User).nickname || "未知用户"}
+                                    </span>
+                                    {(f2Data.data as F2User).verified === 1 && (
+                                      <span className="text-blue-500">✓</span>
+                                    )}
+                                  </div>
+                                  <p className="text-[10px] text-muted-foreground font-mono">
+                                    {(f2Data.data as F2User).unique_id ? `抖音号: ${(f2Data.data as F2User).unique_id}` : `ID: ${(f2Data.data as F2User).sec_user_id || (f2Data.data as F2User).uid}`}
+                                  </p>
+                                  <div className="flex items-center gap-2 mt-0.5 text-[10px] text-muted-foreground">
+                                    {((f2Data.data as F2User).follower_count !== undefined || (f2Data.data as F2User).followers_count !== undefined) && (
+                                      <span>粉丝: {(f2Data.data as F2User).follower_count || (f2Data.data as F2User).followers_count}</span>
+                                    )}
+                                    {((f2Data.data as F2User).aweme_count !== undefined || (f2Data.data as F2User).weibo_count !== undefined) && (
+                                      <span>作品: {(f2Data.data as F2User).aweme_count || (f2Data.data as F2User).weibo_count}</span>
+                                    )}
+                                    {(f2Data.data as F2User).following_count !== undefined && (
+                                      <span>关注: {(f2Data.data as F2User).following_count}</span>
+                                    )}
+                                  </div>
+                                  {((f2Data.data as F2User).description || (f2Data.data as F2User).signature) && (
+                                    <p className="text-[10px] text-muted-foreground mt-0.5 truncate max-w-[200px]">
+                                      {(f2Data.data as F2User).description || (f2Data.data as F2User).signature}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        <p className="text-sm truncate text-foreground/80 mt-1">{item.url}</p>
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
                         <span className="text-xs text-muted-foreground">

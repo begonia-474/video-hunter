@@ -9,7 +9,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
 
-_DB_PATH = Path(__file__).resolve().parent.parent / "data" / "history.db"
+from utils.paths import get_data_dir
+
+_DB_PATH = get_data_dir() / "history.db"
 _lock = threading.Lock()
 _conn: Optional[sqlite3.Connection] = None
 

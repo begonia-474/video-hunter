@@ -11,7 +11,7 @@ interface LogEntry {
   text: string;
 }
 
-export function DownloadPage({ activePlatform, config }: { activePlatform: string; config: Record<string, string | boolean> }) {
+export function DownloadPage({ activePlatform, config, onConnected }: { activePlatform: string; config: Record<string, string | boolean>; onConnected?: (connected: boolean) => void }) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [connected, setConnected] = useState(false);
   const [logs, setLogs] = useState<LogEntry[]>([]);
@@ -33,6 +33,7 @@ export function DownloadPage({ activePlatform, config }: { activePlatform: strin
 
     ws.onopen = () => {
       setConnected(true);
+      onConnected?.(true);
       addLog("info", "已连接到后端服务");
     };
 
@@ -61,6 +62,7 @@ export function DownloadPage({ activePlatform, config }: { activePlatform: strin
 
     ws.onclose = () => {
       setConnected(false);
+      onConnected?.(false);
       wsRef.current = null;
       addLog("info", "连接断开，3秒后重连...");
       reconnectRef.current = setTimeout(connect, 3000);

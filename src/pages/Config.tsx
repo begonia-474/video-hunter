@@ -49,7 +49,7 @@ function makeFields(
   const download: FieldDef[] = [
     { key: "path", label: "下载路径", type: "text", placeholder: "Download", group: "download" },
     { key: "naming", label: "文件命名模板", type: "text", placeholder: "{create}_{desc}", description: "可用变量: {create} {desc} {nickname} {aweme_id} {uid}", group: "download" },
-    { key: "interval", label: "日期区间", type: "text", placeholder: "all", description: "如: 2024-01-01_2024-12-31 或 all", group: "download" },
+    { key: "interval", label: "日期区间", type: "text", placeholder: "all", description: "如: 2024-01-01|2024-12-31 或 all", group: "download" },
     ...allToggles.filter((f) => !exclude.includes(f.key)),
     { key: "folderize", label: "子文件夹", type: "toggle", description: "为每个作品创建独立文件夹", group: "download" },
     { key: "skip_existing", label: "跳过已下载", type: "toggle", description: "已存在的文件不再重复下载", group: "download" },
