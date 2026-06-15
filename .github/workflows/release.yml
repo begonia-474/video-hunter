@@ -1,0 +1,80 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # ── Python backend (PyInstaller) ──────────────────────────────
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Python dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r server/requirements.txt
+
+      - name: Create default app.yaml
+        shell: bash
+        run: |
+          mkdir -p server/data
+          if [ ! -f server/data/app.yaml ]; then
+            cat > server/data/app.yaml << 'EOF'
+          # Video Hunter default config
+          douyin:
+            cookie:
+            path: Download
+            timeout: 10
+          EOF
+          fi
+
+      - name: Build backend with PyInstaller
+        working-directory: server
+        run: pyinstaller video-hunter-backend.spec --noconfirm
+
+      - name: Copy backend to Tauri resources
+        shell: bash
+        run: |
+          mkdir -p src-tauri/resources
+          cp -r server/dist/video-hunter-backend src-tauri/resources/video-hunter-backend
+
+      # ── Tauri frontend ────────────────────────────────────────────
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      - name: Install pnpm
+        run: npm install -g pnpm
+
+      - name: Install frontend dependencies
+        run: pnpm install
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+
+      - name: Build Tauri app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tauriScript: 'pnpm tauri'
+          tagName: ${{ github.ref_name }}
+          releaseName: 'Video Hunter v__VERSION__'
+          releaseBody: 'See the assets below to download and install.'
+          releaseDraft: true
+          prerelease: false
