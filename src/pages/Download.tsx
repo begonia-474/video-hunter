@@ -1,15 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { UrlInput } from "@/components/download/UrlInput";
 import { TaskList } from "@/components/download/TaskList";
-import { cn } from "@/lib/utils";
 import type { Task } from "@/lib/constants";
-import { Terminal, ChevronUp, ChevronDown } from "lucide-react";
-
-interface LogEntry {
-  time: string;
-  type: "info" | "send" | "recv" | "error";
-  text: string;
-}
 
 export function DownloadPage({
   activePlatform,
@@ -22,33 +14,22 @@ export function DownloadPage({
 }) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [connected, setConnected] = useState(false);
-  const [logs, setLogs] = useState<LogEntry[]>([]);
-  const [logOpen, setLogOpen] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectRef = useRef<ReturnType<typeof setTimeout>>(undefined);
-  const logEndRef = useRef<HTMLDivElement>(null);
-
-  const addLog = useCallback((type: LogEntry["type"], text: string) => {
-    const time = new Date().toLocaleTimeString("zh-CN", { hour12: false });
-    setLogs((prev) => [...prev.slice(-200), { time, type, text }]);
-  }, []);
 
   const connect = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
-    addLog("info", "正在连接后端服务...");
     const ws = new WebSocket("ws://127.0.0.1:18224/api/tasks");
 
     ws.onopen = () => {
       setConnected(true);
       onConnected?.(true);
-      addLog("info", "已连接到后端服务");
     };
 
     ws.onmessage = (event) => {
       try {
         const msg = JSON.parse(event.data);
-        addLog("recv", JSON.stringify(msg));
 
         if (msg.type === "task_list") {
           setTasks(msg.tasks);
@@ -66,7 +47,7 @@ export function DownloadPage({
           setTasks((prev) => prev.filter((t) => t.task_id !== msg.task_id));
         }
       } catch {
-        addLog("error", `解析消息失败: ${event.data}`);
+        // ignore parse errors
       }
     };
 
@@ -74,17 +55,15 @@ export function DownloadPage({
       setConnected(false);
       onConnected?.(false);
       wsRef.current = null;
-      addLog("info", "连接断开，3秒后重连...");
       reconnectRef.current = setTimeout(connect, 3000);
     };
 
     ws.onerror = () => {
-      addLog("error", "WebSocket 连接错误");
       ws.close();
     };
 
     wsRef.current = ws;
-  }, [addLog, onConnected]);
+  }, [onConnected]);
 
   useEffect(() => {
     connect();
@@ -94,20 +73,12 @@ export function DownloadPage({
     };
   }, [connect]);
 
-  useEffect(() => {
-    logEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [logs]);
-
   const sendWsMessage = useCallback(
     (msg: Record<string, unknown>) => {
-      if (wsRef.current?.readyState !== WebSocket.OPEN) {
-        addLog("error", "未连接到后端服务");
-        return;
-      }
-      addLog("send", JSON.stringify(msg, null, 2));
+      if (wsRef.current?.readyState !== WebSocket.OPEN) return;
       wsRef.current.send(JSON.stringify(msg));
     },
-    [addLog]
+    []
   );
 
   const handleStart = (params: { platform: string; url: string }) => {
@@ -166,13 +137,6 @@ export function DownloadPage({
     });
   };
 
-  const levelColors: Record<string, string> = {
-    info: "text-muted-foreground",
-    send: "text-primary",
-    recv: "text-success",
-    error: "text-destructive",
-  };
-
   return (
     <div className="flex flex-col h-full">
       <div className="px-6 pt-5 pb-4 flex items-center justify-between shrink-0">
@@ -205,44 +169,6 @@ export function DownloadPage({
           onBatchCancel={handleBatchCancel}
           onBatchRemove={handleBatchRemove}
         />
-      </div>
-
-      {/* 日志面板 */}
-      <div className="shrink-0 border-t border-border">
-        <button
-          onClick={() => setLogOpen(!logOpen)}
-          className="flex items-center gap-2 w-full px-6 py-2 text-xs text-muted-foreground hover:text-foreground transition-mac"
-        >
-          <Terminal size={12} />
-          <span className="font-medium">运行日志</span>
-          <span className="text-[10px]">({logs.length})</span>
-          <div className="ml-auto">
-            {logOpen ? <ChevronDown size={12} /> : <ChevronUp size={12} />}
-          </div>
-        </button>
-
-        {logOpen && (
-          <div className="h-40 overflow-auto px-6 pb-3 bg-foreground/5 font-mono text-[11px] leading-relaxed">
-            {logs.length === 0 ? (
-              <p className="text-muted-foreground py-2">暂无日志</p>
-            ) : (
-              logs.map((log, i) => (
-                <div
-                  key={i}
-                  className={cn(
-                    "whitespace-pre-wrap break-all",
-                    levelColors[log.type]
-                  )}
-                >
-                  <span className="text-muted-foreground/60">[{log.time}] </span>
-                  <span className="text-muted-foreground/40">[{log.type}] </span>
-                  {log.text}
-                </div>
-              ))
-            )}
-            <div ref={logEndRef} />
-          </div>
-        )}
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-"""Helpers to locate f2 configuration files."""
+"""Helpers to locate configuration files."""
 
 from __future__ import annotations
 
@@ -41,7 +41,7 @@ def ensure_default_config(destination: Path) -> None:
         return
     # Write a minimal placeholder
     destination.write_text(
-        "# f2 GUI default config\n"
+        "# Video Hunter default config\n"
         "douyin:\n  cookie:\n  path: Download\n  timeout: 10\n",
         encoding="utf-8",
     )

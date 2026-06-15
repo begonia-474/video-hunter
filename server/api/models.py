@@ -1,4 +1,4 @@
-"""Pydantic models for the f2 GUI API."""
+"""Pydantic models for the Video Hunter API."""
 
 from datetime import datetime
 from typing import Any, Optional

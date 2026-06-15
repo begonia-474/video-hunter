@@ -5,6 +5,7 @@ import { DownloadPage } from "@/pages/Download";
 import { ConfigPage } from "@/pages/Config";
 import { HistoryPage } from "@/pages/History";
 import { StatsPage } from "@/pages/Stats";
+import { BackendLogPage } from "@/pages/BackendLog";
 import { cn } from "@/lib/utils";
 
 export default function App() {
@@ -98,6 +99,9 @@ export default function App() {
           </div>
           <div className={cn("h-full", activePage !== "stats" && "hidden")}>
             <StatsPage active={activePage === "stats"} />
+          </div>
+          <div className={cn("h-full", activePage !== "backend" && "hidden")}>
+            <BackendLogPage />
           </div>
         </main>
       </div>

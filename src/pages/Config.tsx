@@ -429,7 +429,7 @@ const barkFields: FieldDef[] = [
     key: "group",
     label: "通知分组",
     type: "text",
-    placeholder: "F2下载统计",
+    placeholder: "Video Hunter 下载统计",
     group: "basic",
   },
   {

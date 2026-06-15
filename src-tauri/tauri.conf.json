@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "f2-gui",
+  "productName": "Video Hunter",
   "version": "0.1.0",
-  "identifier": "com.axiao.f2-gui",
+  "identifier": "com.begonia-474.video-hunter",
   "build": {
     "beforeDevCommand": "pnpm dev",
     "devUrl": "http://127.0.0.1:14200",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "f2 GUI",
+        "title": "Video Hunter",
         "width": 1024,
         "height": 680,
         "decorations": false,
@@ -33,6 +33,14 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "resources": [
+      "resources/video-hunter-backend"
+    ],
+    "windows": {
+      "certificateThumbprint": null,
+      "digestAlgorithm": "sha256",
+      "timestampUrl": ""
+    }
   }
 }

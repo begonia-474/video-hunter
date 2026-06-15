@@ -40,7 +40,7 @@ interface HistoryItem {
   created_at: string;
 }
 
-interface F2User {
+interface PlatformUser {
   nickname?: string;
   avatar_url?: string;
   avatar_hd?: string;
@@ -65,7 +65,7 @@ interface F2User {
   user_type?: string;
 }
 
-interface F2Video {
+interface PlatformVideo {
   desc?: string;
   cover?: string;
   duration?: string;
@@ -123,8 +123,8 @@ export function HistoryPage({ active }: HistoryPageProps) {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [f2Users, setF2Users] = useState<Record<string, F2User>>({});
-  const [f2Videos, setF2Videos] = useState<Record<string, F2Video>>({});
+  const [platformUsers, setPlatformUsers] = useState<Record<string, PlatformUser>>({});
+  const [platformVideos, setPlatformVideos] = useState<Record<string, PlatformVideo>>({});
 
   // Search and filter state
   const [searchQuery, setSearchQuery] = useState("");
@@ -144,7 +144,7 @@ export function HistoryPage({ active }: HistoryPageProps) {
       if (res.ok) {
         const data = await res.json();
         setHistory(data);
-        fetchF2Data(data);
+        fetchPlatformData(data);
       }
     } catch {
       // backend not available
@@ -153,7 +153,7 @@ export function HistoryPage({ active }: HistoryPageProps) {
     }
   }, []);
 
-  const fetchF2Data = async (historyItems: HistoryItem[]) => {
+  const fetchPlatformData = async (historyItems: HistoryItem[]) => {
     const platforms = [...new Set(historyItems.map((item) => item.platform))];
     for (const platform of platforms) {
       try {
@@ -162,14 +162,14 @@ export function HistoryPage({ active }: HistoryPageProps) {
         );
         if (usersRes.ok) {
           const users = await usersRes.json();
-          const usersMap: Record<string, F2User> = {};
-          users.forEach((user: F2User) => {
+          const usersMap: Record<string, PlatformUser> = {};
+          users.forEach((user: PlatformUser) => {
             const userId = user.sec_user_id || user.uid;
             if (userId) {
               usersMap[userId] = user;
             }
           });
-          setF2Users((prev) => ({ ...prev, ...usersMap }));
+          setPlatformUsers((prev) => ({ ...prev, ...usersMap }));
         }
 
         const videosRes = await fetch(
@@ -177,13 +177,13 @@ export function HistoryPage({ active }: HistoryPageProps) {
         );
         if (videosRes.ok) {
           const videos = await videosRes.json();
-          const videosMap: Record<string, F2Video> = {};
-          videos.forEach((video: F2Video) => {
+          const videosMap: Record<string, PlatformVideo> = {};
+          videos.forEach((video: PlatformVideo) => {
             if (video.aweme_id) {
               videosMap[video.aweme_id] = video;
             }
           });
-          setF2Videos((prev) => ({ ...prev, ...videosMap }));
+          setPlatformVideos((prev) => ({ ...prev, ...videosMap }));
         }
       } catch {
         // ignore
@@ -294,16 +294,16 @@ export function HistoryPage({ active }: HistoryPageProps) {
     return match ? match[1] : null;
   };
 
-  const getRelatedF2Data = (item: HistoryItem) => {
+  const getRelatedPlatformData = (item: HistoryItem) => {
     if (item.mode === "one") {
       const videoId = getVideoIdFromUrl(item.url);
-      if (videoId && f2Videos[videoId]) {
-        return { type: "video", data: f2Videos[videoId] };
+      if (videoId && platformVideos[videoId]) {
+        return { type: "video", data: platformVideos[videoId] };
       }
     } else {
       const userId = getUserIdFromUrl(item.url);
-      if (userId && f2Users[userId]) {
-        return { type: "user", data: f2Users[userId] };
+      if (userId && platformUsers[userId]) {
+        return { type: "user", data: platformUsers[userId] };
       }
     }
     return null;
@@ -565,7 +565,7 @@ export function HistoryPage({ active }: HistoryPageProps) {
                 icon: null,
               };
               const isExpanded = expandedId === item.task_id;
-              const f2Data = getRelatedF2Data(item);
+              const platformData = getRelatedPlatformData(item);
               const isSelected = selectedIds.has(item.task_id);
 
               return (
@@ -616,13 +616,13 @@ export function HistoryPage({ active }: HistoryPageProps) {
                         </div>
 
                         {/* F2 Data Preview */}
-                        {f2Data && (
+                        {platformData && (
                           <div className="mt-2 p-2.5 rounded-lg bg-secondary/50">
-                            {f2Data.type === "video" ? (
+                            {platformData.type === "video" ? (
                               <div className="flex items-start gap-2">
-                                {(f2Data.data as F2Video).cover && (
+                                {(platformData.data as PlatformVideo).cover && (
                                   <img
-                                    src={(f2Data.data as F2Video).cover}
+                                    src={(platformData.data as PlatformVideo).cover}
                                     alt="封面"
                                     className="w-16 h-16 rounded-lg object-cover"
                                     onError={(e) => {
@@ -639,35 +639,35 @@ export function HistoryPage({ active }: HistoryPageProps) {
                                       className="text-muted-foreground"
                                     />
                                     <span className="text-xs font-medium truncate">
-                                      {(f2Data.data as F2Video).desc ||
+                                      {(platformData.data as PlatformVideo).desc ||
                                         "无标题"}
                                     </span>
                                   </div>
-                                  {(f2Data.data as F2Video).nickname && (
+                                  {(platformData.data as PlatformVideo).nickname && (
                                     <p className="text-[11px] text-muted-foreground mt-0.5">
-                                      @{(f2Data.data as F2Video).nickname}
+                                      @{(platformData.data as PlatformVideo).nickname}
                                     </p>
                                   )}
                                   <div className="flex items-center gap-2 mt-1 text-[10px] text-muted-foreground">
-                                    {(f2Data.data as F2Video).digg_count && (
+                                    {(platformData.data as PlatformVideo).digg_count && (
                                       <span>
                                         ❤️{" "}
-                                        {(f2Data.data as F2Video).digg_count}
+                                        {(platformData.data as PlatformVideo).digg_count}
                                       </span>
                                     )}
-                                    {(f2Data.data as F2Video).comment_count && (
+                                    {(platformData.data as PlatformVideo).comment_count && (
                                       <span>
                                         💬{" "}
                                         {
-                                          (f2Data.data as F2Video)
+                                          (platformData.data as PlatformVideo)
                                             .comment_count
                                         }
                                       </span>
                                     )}
-                                    {(f2Data.data as F2Video).duration && (
+                                    {(platformData.data as PlatformVideo).duration && (
                                       <span>
                                         ⏱️{" "}
-                                        {(f2Data.data as F2Video).duration}s
+                                        {(platformData.data as PlatformVideo).duration}s
                                       </span>
                                     )}
                                   </div>
@@ -675,12 +675,12 @@ export function HistoryPage({ active }: HistoryPageProps) {
                               </div>
                             ) : (
                               <div className="flex items-center gap-2.5">
-                                {((f2Data.data as F2User).avatar_url ||
-                                  (f2Data.data as F2User).avatar_hd) && (
+                                {((platformData.data as PlatformUser).avatar_url ||
+                                  (platformData.data as PlatformUser).avatar_hd) && (
                                   <img
                                     src={
-                                      (f2Data.data as F2User).avatar_url ||
-                                      (f2Data.data as F2User).avatar_hd
+                                      (platformData.data as PlatformUser).avatar_url ||
+                                      (platformData.data as PlatformUser).avatar_hd
                                     }
                                     alt="头像"
                                     className="w-10 h-10 rounded-full object-cover"
@@ -698,10 +698,10 @@ export function HistoryPage({ active }: HistoryPageProps) {
                                       className="text-muted-foreground"
                                     />
                                     <span className="text-xs font-medium">
-                                      {(f2Data.data as F2User).nickname ||
+                                      {(platformData.data as PlatformUser).nickname ||
                                         "未知用户"}
                                     </span>
-                                    {(f2Data.data as F2User).verified ===
+                                    {(platformData.data as PlatformUser).verified ===
                                       1 && (
                                       <span className="text-blue-500">
                                         ✓
@@ -709,49 +709,49 @@ export function HistoryPage({ active }: HistoryPageProps) {
                                     )}
                                   </div>
                                   <p className="text-[10px] text-muted-foreground font-mono">
-                                    {(f2Data.data as F2User).unique_id
-                                      ? `抖音号: ${(f2Data.data as F2User).unique_id}`
-                                      : `ID: ${(f2Data.data as F2User).sec_user_id || (f2Data.data as F2User).uid}`}
+                                    {(platformData.data as PlatformUser).unique_id
+                                      ? `抖音号: ${(platformData.data as PlatformUser).unique_id}`
+                                      : `ID: ${(platformData.data as PlatformUser).sec_user_id || (platformData.data as PlatformUser).uid}`}
                                   </p>
                                   <div className="flex items-center gap-2 mt-0.5 text-[10px] text-muted-foreground">
-                                    {((f2Data.data as F2User).follower_count !==
+                                    {((platformData.data as PlatformUser).follower_count !==
                                       undefined ||
-                                      (f2Data.data as F2User)
+                                      (platformData.data as PlatformUser)
                                         .followers_count !== undefined) && (
                                       <span>
                                         粉丝:{" "}
-                                        {(f2Data.data as F2User)
+                                        {(platformData.data as PlatformUser)
                                           .follower_count ||
-                                          (f2Data.data as F2User)
+                                          (platformData.data as PlatformUser)
                                             .followers_count}
                                       </span>
                                     )}
-                                    {((f2Data.data as F2User).aweme_count !==
+                                    {((platformData.data as PlatformUser).aweme_count !==
                                       undefined ||
-                                      (f2Data.data as F2User).weibo_count !==
+                                      (platformData.data as PlatformUser).weibo_count !==
                                         undefined) && (
                                       <span>
                                         作品:{" "}
-                                        {(f2Data.data as F2User).aweme_count ||
-                                          (f2Data.data as F2User).weibo_count}
+                                        {(platformData.data as PlatformUser).aweme_count ||
+                                          (platformData.data as PlatformUser).weibo_count}
                                       </span>
                                     )}
-                                    {(f2Data.data as F2User)
+                                    {(platformData.data as PlatformUser)
                                       .following_count !== undefined && (
                                       <span>
                                         关注:{" "}
                                         {
-                                          (f2Data.data as F2User)
+                                          (platformData.data as PlatformUser)
                                             .following_count
                                         }
                                       </span>
                                     )}
                                   </div>
-                                  {((f2Data.data as F2User).description ||
-                                    (f2Data.data as F2User).signature) && (
+                                  {((platformData.data as PlatformUser).description ||
+                                    (platformData.data as PlatformUser).signature) && (
                                     <p className="text-[10px] text-muted-foreground mt-0.5 truncate max-w-[200px]">
-                                      {(f2Data.data as F2User).description ||
-                                        (f2Data.data as F2User).signature}
+                                      {(platformData.data as PlatformUser).description ||
+                                        (platformData.data as PlatformUser).signature}
                                     </p>
                                   )}
                                 </div>

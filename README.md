@@ -1,6 +1,6 @@
-# f2 GUI
+# Video Hunter
 
-[f2](https://github.com/Johnserf-Seed/f2) 的桌面 GUI 客户端，基于 Tauri + React + FastAPI 构建。
+基于 [f2](https://github.com/Johnserf-Seed/f2) 的桌面视频下载客户端，使用 Tauri + React + FastAPI 构建。
 
 ## 功能
 
@@ -27,7 +27,7 @@
 - Node.js >= 18
 - pnpm
 - Rust (Tauri)
-- Python >= 3.10 + conda 环境 `projects-python`
+- Python >= 3.10
 
 ### 启动
 
@@ -37,7 +37,6 @@ pnpm install
 
 # 启动 Python 后端
 cd server
-conda activate projects-python
 python main.py
 
 # 启动 Tauri 开发模式（另开终端）
@@ -47,18 +46,23 @@ pnpm tauri dev
 ### 构建
 
 ```bash
-# 打包 Python 后端
+# 打包 Python 后端（--onedir 模式）
 cd server
-pyinstaller --onefile --name f2-server main.py
+pyinstaller -y video-hunter-backend.spec
 
-# 构建 Tauri 应用
+# 复制后端到 Tauri resources
+Remove-Item "src-tauri/resources/video-hunter-backend" -Recurse -Force
+Copy-Item "dist/video-hunter-backend" "src-tauri/resources/video-hunter-backend" -Recurse -Force
+
+# 清理 Tauri 缓存并构建安装包
+Remove-Item "src-tauri/target/release/resources/*" -Recurse -Force
 pnpm tauri build
 ```
 
 ## 项目结构
 
 ```
-f2 gui/
+video-hunter/
 ├── src/              # React 前端
 ├── src-tauri/        # Tauri Rust 壳
 ├── server/           # FastAPI 后端

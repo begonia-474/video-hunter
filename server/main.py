@@ -1,4 +1,4 @@
-"""FastAPI entry point for the f2 GUI backend.
+"""FastAPI entry point for the Video Hunter backend.
 
 Start the server::
 
@@ -48,7 +48,7 @@ def ensure_f2_config() -> None:
 # Switch working directory to app dir so f2's relative paths work
 os.chdir(get_app_dir())
 
-app = FastAPI(title="f2 GUI Server", version="0.1.0")
+app = FastAPI(title="Video Hunter Server", version="0.1.0")
 
 # CORS -- allow everything during development
 app.add_middleware(
@@ -85,7 +85,7 @@ async def on_startup() -> None:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="f2 GUI FastAPI server")
+    parser = argparse.ArgumentParser(description="Video Hunter FastAPI server")
     parser.add_argument("--port", type=int, default=18224, help="Port to listen on (default: 18224)")
     parser.add_argument("--host", type=str, default="127.0.0.1", help="Host to bind (default: 127.0.0.1)")
     return parser.parse_args()

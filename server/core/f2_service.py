@@ -238,7 +238,7 @@ class F2Service:
             
             if downloaded_files:
                 # 有文件已下载，标记为部分成功
-                logger.warning(f"[DownloadPartial] f2 出错但有 {len(downloaded_files)} 个文件已下载: {e}")
+                logger.warning(f"[DownloadPartial] 下载引擎出错但有 {len(downloaded_files)} 个文件已下载: {e}")
                 if progress_callback:
                     await progress_callback(1, 1, f"部分完成（{len(downloaded_files)} 个文件）")
                 return [str(resolved_path)]

@@ -10,7 +10,7 @@ export function TitleBar() {
       className="flex h-10 items-center justify-between select-none shrink-0"
     >
       <span className="text-xs font-medium text-muted-foreground pointer-events-none tracking-wide pl-4">
-        f2 GUI
+        Video Hunter
       </span>
 
       <div className="flex h-full">

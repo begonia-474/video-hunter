@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    f2_gui_lib::run()
+    video_hunter_lib::run()
 }
